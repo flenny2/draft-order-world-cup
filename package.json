@@ -1,0 +1,11 @@
+{
+  "name": "draft-order-world-cup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "World Cup Fantasy Draft Order tool — ties a 12-person league's draft order to the 2026 WC knockout stage.",
+  "type": "module",
+  "scripts": {
+    "test": "node engine.test.js",
+    "serve": "python3 -m http.server 8000"
+  }
+}
