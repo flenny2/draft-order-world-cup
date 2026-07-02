@@ -119,6 +119,7 @@ a:hover { text-decoration: underline; }
 /* band → colour, shared by ladder nodes and the help diagram swatches */
 .band-champion  { --rung: var(--tertiary); }
 .band-runner_up { --rung: #EAB308; }
+.band-sf_loser  { --rung: #CA8A04; } /* 3rd-or-4th pending — same gold zone as third */
 .band-third     { --rung: #CA8A04; }
 .band-fourth    { --rung: var(--gray); }
 .band-qf_losers { --rung: var(--primary); }

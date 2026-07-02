@@ -9,17 +9,21 @@
 // changes, it changes HERE. The canonical rules live in claude.md §THE RULESET.
 // =============================================================================
 
-// Finish bands, BEST → WORST. ALIVE = finish not yet determined (still advancing,
-// or an SF loser awaiting the 3rd-place game). ALIVE sorts to the TOP because an
-// alive team can still finish anywhere up to champion.
+// Finish bands, BEST → WORST. ALIVE = finish not yet determined; it sorts to the
+// TOP because a genuinely alive team can still finish anywhere up to champion.
+// SF_LOSER = lost a semifinal: guaranteed 3rd or 4th pending the 3rd-place game,
+// so it is NOT alive — it can no longer beat the finalists and must rank below
+// them (otherwise a champ/RU pick locked by the Final would be displaced when
+// the 3rd-place game resolves).
 export const BAND_RANK = {
   ALIVE: 0,
   CHAMPION: 1,
   RUNNER_UP: 2,
-  THIRD: 3,
-  FOURTH: 4,
-  QF_LOSERS: 5,
-  R16_LOSERS: 6,
+  SF_LOSER: 3,
+  THIRD: 4,
+  FOURTH: 5,
+  QF_LOSERS: 6,
+  R16_LOSERS: 7,
 };
 
 // The two bands where the ruleset tiebreaker (GD → GF → tiebreak number) applies.
@@ -53,13 +57,16 @@ function decide(match, { includeProvisional }) {
     (includeProvisional && match.status === 'in_progress');
   if (!usable) return null;
   if (match.teamA == null || match.teamB == null) return null; // slot still TBD
+  // BOTH branches need the recorded score — the loser's GD/GF come from it — so
+  // a match missing a score is still undetermined, even a pens match with the
+  // shootout winner already chosen (else GD is computed from null arithmetic).
+  if (match.scoreA == null || match.scoreB == null) return null;
 
   if (match.decidedByPens) {
     if (!match.penWinner) return null; // pens flagged but no winner recorded yet
     const winner = match.penWinner;
     return { winner, loser: winner === match.teamA ? match.teamB : match.teamA };
   }
-  if (match.scoreA == null || match.scoreB == null) return null;
   if (match.scoreA === match.scoreB) return null; // tied, no shootout → no loser yet
   return match.scoreA > match.scoreB
     ? { winner: match.teamA, loser: match.teamB }
@@ -88,8 +95,9 @@ export function matchWinnerLoser(match) {
 //  - 3rd    → winner THIRD,    loser FOURTH
 //  - QF     → loser QF_LOSERS  (with match stats)
 //  - R16    → loser R16_LOSERS (with match stats)
-//  - SF     → not banded here: the SF loser plays the 3rd-place game, so it stays
-//             ALIVE (3rd or 4th undetermined) until that game resolves.
+//  - SF     → loser SF_LOSER: it plays the 3rd-place game, so its exact finish
+//             (3rd or 4th) is still open — but it ranks below the finalists
+//             already. The 3rd-place result upgrades it to THIRD/FOURTH.
 // Anything never recorded as a loser/champion stays ALIVE.
 export function classifyTeams(teams, matches, { includeProvisional }) {
   const band = new Map();
@@ -105,8 +113,13 @@ export function classifyTeams(teams, matches, { includeProvisional }) {
       case 'QF':
         band.set(r.loser, { band: 'QF_LOSERS', matchGD: r.loserGD, matchGF: r.loserGF });
         break;
-      case 'SF':
-        break; // intentionally not banded — see note above
+      case 'SF': {
+        // Don't overwrite THIRD/FOURTH if the 3rd-place game was already
+        // processed — match array order must not affect the result.
+        const cur = band.get(r.loser);
+        if (!cur || cur.band === 'ALIVE') band.set(r.loser, { band: 'SF_LOSER', matchGD: null, matchGF: null });
+        break;
+      }
       case '3rd':
         band.set(r.winner, { band: 'THIRD', matchGD: null, matchGF: null });
         band.set(r.loser, { band: 'FOURTH', matchGD: null, matchGF: null });
@@ -122,32 +135,34 @@ export function classifyTeams(teams, matches, { includeProvisional }) {
 
 // --- Locking ---------------------------------------------------------------
 // A band's picks lock once its internal order is fixed AND the count of assigned
-// teams above it is frozen. Both conditions reduce to "a whole round is final":
-//   R16-losers  ← all 8 R16 final  (the 8 advancing teams above are then fixed)
-//   QF-losers   ← all 4 QF final   (the 4 QF winners finish 1st–4th regardless of SF/Final)
-//   3rd / 4th   ← 3rd-place final  (implies SFs final, so the 2 finalists' count is frozen)
-//   champ / RU  ← Final final
-// A lower band can therefore lock BEFORE a higher one. Locked picks never move
-// under any remaining or in-progress result (invariant #5).
-function roundAllFinal(matches, round) {
+// teams above it is frozen. A round counts as DECIDED only when every match in
+// it has a settled outcome — status 'final' alone isn't enough (a final with a
+// missing score or TBD team determines nothing yet, and must never lock).
+function roundDecided(matches, round) {
   const ms = matches.filter((m) => m.round === round);
-  return ms.length > 0 && ms.every((m) => m.status === 'final');
+  return ms.length > 0 && ms.every((m) => matchOutcome(m, { includeProvisional: false }) !== null);
 }
+// Rounds that must be decided for each band to lock. The band's own round fixes
+// its internal order; the EARLIER rounds are required too, because an undecided
+// earlier match leaves its teams ranked above the band, and its eventual loser
+// drops below — shifting the band's pick numbers. In normal chronology every
+// earlier round is already final, so this is exactly the ruleset's four lock
+// bullets; the extra requirements only bite on out-of-order data entry.
+// Champ/RU do NOT need the 3rd-place game: SF losers rank below RUNNER_UP
+// whether banded SF_LOSER or THIRD/FOURTH. A lower band can therefore still
+// lock BEFORE a higher one. Locked picks never move (invariant #5).
+const LOCK_NEEDS = {
+  CHAMPION: ['R16', 'QF', 'SF', 'Final'],
+  RUNNER_UP: ['R16', 'QF', 'SF', 'Final'],
+  THIRD: ['R16', 'QF', 'SF', '3rd'],
+  FOURTH: ['R16', 'QF', 'SF', '3rd'],
+  QF_LOSERS: ['R16', 'QF'],
+  R16_LOSERS: ['R16'],
+};
 function isBandLocked(bandName, matches) {
-  switch (bandName) {
-    case 'CHAMPION':
-    case 'RUNNER_UP':
-      return roundAllFinal(matches, 'Final');
-    case 'THIRD':
-    case 'FOURTH':
-      return roundAllFinal(matches, '3rd');
-    case 'QF_LOSERS':
-      return roundAllFinal(matches, 'QF');
-    case 'R16_LOSERS':
-      return roundAllFinal(matches, 'R16');
-    default:
-      return false; // ALIVE never locks
-  }
+  const needs = LOCK_NEEDS[bandName];
+  if (!needs) return false; // ALIVE and SF_LOSER (3rd-vs-4th still open) never lock
+  return needs.every((round) => roundDecided(matches, round));
 }
 
 // --- Ranking comparator ----------------------------------------------------
@@ -275,6 +290,8 @@ export function validate({ members, matches }) {
       issues.push({ level: 'error', msg: `Match ${m.id}: pens means the recorded score is the end-of-ET draw — scores must be equal.` });
     if (m.decidedByPens && !m.penWinner)
       issues.push({ level: 'warn', msg: `Match ${m.id}: marked pens but no shootout winner chosen.` });
+    if (m.decidedByPens && (m.scoreA == null || m.scoreB == null))
+      issues.push({ level: 'error', msg: `Match ${m.id}: pens needs the end-of-extra-time score entered (both sides) — the loser's GD/GF come from it.` });
     if (!m.decidedByPens && m.scoreA != null && m.scoreA === m.scoreB)
       issues.push({ level: 'warn', msg: `Match ${m.id}: a knockout can't end level — set a winner or mark pens.` });
   }

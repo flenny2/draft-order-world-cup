@@ -64,10 +64,15 @@ const emitAuth = () => { for (const cb of authListeners) cb(isAdmin()); };
 // Realtime read (public). Fires immediately with the current server value, and
 // again on every change — cross-DEVICE now, not just cross-tab. If the DB is
 // still empty (no admin write yet), fall back to the local seed for display.
+// `synced` gates all writes: until the first server snapshot lands, the mirror
+// is just the local seed, and a whole-state write() then would clobber the live
+// DB with it (the write path is read-modify-write of the mirror).
+let synced = false;
 onValue(ref(db, STATE_PATH), (snap) => {
+  synced = true; // a "doesn't exist" answer is still a server answer — first-ever seeding write stays allowed
   state = snap.exists() ? normalize(snap.val()) : clone(seed);
   emitData();
-});
+}, (err) => console.error('Live read failed — check the DB read rule:', err));
 onAuthStateChanged(auth, () => emitAuth());
 
 // --- public API ------------------------------------------------------------
@@ -96,7 +101,10 @@ export function signIn(email, password) {
 }
 export function signOut() { return fbSignOut(auth); }
 
-function requireAdmin() { if (!isAdmin()) throw new Error('Admin only.'); }
+function requireAdmin() {
+  if (!isAdmin()) throw new Error('Admin only.');
+  if (!synced) throw new Error('Still syncing with the live database — try again in a second.');
+}
 
 // Write the WHOLE state (single admin, ~KB payload). Optimistically update the
 // local mirror for a snappy UI; the server echo confirms it moments later.

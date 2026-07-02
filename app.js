@@ -17,7 +17,7 @@ import { kickoffMs, nextMatch, countdown, groupByDay } from './schedule.js';
 import { snapshot, formatUpdate } from './report.js';
 
 const BAND_LABEL = {
-  ALIVE: 'Still alive', CHAMPION: 'Champion', RUNNER_UP: 'Runner-up',
+  ALIVE: 'Still alive', CHAMPION: 'Champion', RUNNER_UP: 'Runner-up', SF_LOSER: '3rd or 4th',
   THIRD: '3rd place', FOURTH: '4th place', QF_LOSERS: 'QF exit', R16_LOSERS: 'R16 exit',
 };
 const ROUND_LABEL = { R16: 'Round of 16', QF: 'Quarterfinal', SF: 'Semifinal', '3rd': '3rd-place game', Final: 'Final' };

@@ -284,6 +284,70 @@ function fullTournament() {
 }
 
 // ===========================================================================
+// Regressions — 2026-07-01 audit.
+// R1: an SF loser is guaranteed 3rd or 4th, so it must rank BELOW the finalists
+//     (not float ALIVE at the top) — otherwise a champ/RU pick "locked" by the
+//     Final gets displaced when the 3rd-place game is entered later. Locking
+//     must also require the EARLIER rounds to be decided (out-of-order entry).
+// R3: a pens match without both end-of-ET scores is undetermined — the old code
+//     computed the loser's GD from null arithmetic (GD +1 topped the band).
+// ===========================================================================
+{
+  const members = membersFrom(T.map((t, i) => [t.id, i + 1]));
+  const at = (result, id) => result.picks.find((p) => p.team.id === id);
+
+  // Final entered, 3rd-place game NOT yet played (admin backfills it later).
+  const pre3rd = fullTournament().map((x) => (x.id === '3rd' ? m('3rd', '3rd', 't9', 't13', null) : x));
+  const before = computeDraftOrder({ teams: T, members, matches: pre3rd });
+  check('R1.SF losers rank below the finalists (champion = pick 1)',
+    at(before, 't1').pickNumber === 1 && at(before, 't5').pickNumber === 2,
+    `t1=${at(before, 't1').pickNumber} t5=${at(before, 't5').pickNumber}`);
+  check('R1.champ/RU locked once the Final (and earlier rounds) are decided',
+    at(before, 't1').locked && at(before, 't5').locked);
+  check('R1.SF losers banded SF_LOSER at picks 3-4, never locked',
+    at(before, 't9').band === 'SF_LOSER' && at(before, 't9').pickNumber === 3
+    && at(before, 't13').pickNumber === 4 && !at(before, 't9').locked && !at(before, 't13').locked,
+    `t9=${at(before, 't9').band}/${at(before, 't9').pickNumber}`);
+  // Backfill the 3rd-place game: every pick that was locked must stay put.
+  const after = computeDraftOrder({ teams: T, members, matches: fullTournament() });
+  const moved = before.picks.filter((p) => p.locked)
+    .filter((p) => after.picks.find((q) => q.member.id === p.member.id).pickNumber !== p.pickNumber);
+  check('R1.locked picks unmoved by the late 3rd-place result', moved.length === 0,
+    moved.map((p) => `${p.member.id}@${p.pickNumber}`).join(','));
+
+  // Out-of-order entry: Final decided while a QF is missing → champ can't lock
+  // (the undecided QF's teams still rank above it and will drop below on resolve).
+  const holed = fullTournament().map((x) => (x.id === '98' ? m('98', 'QF', 't9', 't11', null) : x));
+  const h = computeDraftOrder({ teams: T, members, matches: holed });
+  check('R1.champ not locked while an earlier round is undecided', !at(h, 't1').locked);
+  check('R1.R16-loser band still locks independently of the hole', at(h, 't2').locked);
+}
+{
+  const half = [
+    m('89', 'R16', 't1', 't2', { a: 1, b: null, pens: 't2' }), // scoreB forgotten
+    m('90', 'R16', 't3', 't4', { a: 0, b: 0, pens: 't3' }),    // legit pens loser t4, GD 0
+    m('91', 'R16', 't5', 't6', { a: 1, b: 0 }),
+    m('92', 'R16', 't7', 't8', { a: 1, b: 0 }),
+    m('93', 'R16', 't9', 't10', { a: 1, b: 0 }),
+    m('94', 'R16', 't11', 't12', { a: 1, b: 0 }),
+    m('95', 'R16', 't13', 't14', { a: 1, b: 0 }),
+    m('96', 'R16', 't15', 't16', { a: 2, b: 0 }),
+  ];
+  const bands = classifyTeams(T, half, { includeProvisional: false });
+  check('R3.pens without both scores decides nothing (teams stay ALIVE)',
+    bands.get('t1').band === 'ALIVE' && bands.get('t2').band === 'ALIVE',
+    `${bands.get('t1').band}/${bands.get('t2').band}`);
+  check('R3.no bracket advancement without the ET score', matchWinnerLoser(half[0]) === null);
+  const { picks } = computeDraftOrder({ teams: T, members: membersFrom([['t1', 1], ['t4', 2]]), matches: half });
+  check('R3.half-entered pens gets no GD (never outranks a real pens loser)',
+    picks.find((p) => p.team.id === 't1').matchGD === null,
+    `GD=${picks.find((p) => p.team.id === 't1').matchGD}`);
+  check('R3.a round with an undetermined "final" never locks', picks.every((p) => !p.locked));
+  check('R3.validate flags the missing pens score as an error',
+    validate({ members: [], matches: [half[0]] }).some((i) => i.level === 'error'));
+}
+
+// ===========================================================================
 // Phase-2 helpers — auto-populate (resolveBracket) and validation. These guard
 // the admin write path; they don't replace the 5 invariants above.
 // ===========================================================================
