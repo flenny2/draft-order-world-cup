@@ -33,13 +33,23 @@ const getBaseline = () => { try { return JSON.parse(localStorage.getItem(BASELIN
 const setBaseline = (snap) => { try { localStorage.setItem(BASELINE_KEY, JSON.stringify(snap)); } catch {} };
 const publicUrl = () => location.href.split('#')[0];
 
+// Theme: 'day' (light — Dylan's design kit, the default) ⇄ 'night' (dark). Per device.
+const THEME_KEY = 'wcdraft.theme.v1';
+const getTheme = () => { try { return localStorage.getItem(THEME_KEY) || 'day'; } catch { return 'day'; } };
+const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch {} };
+const applyTheme = (t) => { document.documentElement.dataset.theme = t; };
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 // --- module state (presentation only) --------------------------------------
 let appState = store.getState();
 let admin = store.isAdmin();
 let viewMode = 'projected'; // 'projected' | 'locked'
 let meId = getMe();
+let theme = getTheme();
 let tickTimer = null;
 let predictions = {}; // what-if explorer sandbox: matchId -> { winner } (never written to store)
+let prevLocked = new Set(); // member ids locked at last order render → drives the just-locked pulse
+let celebrated = false; // fire the final-locks celebration only once per completion
 
 const view = () => document.getElementById('view');
 
@@ -53,22 +63,26 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // ===========================================================================
 function teamLabel(team) { return team ? `${team.flagEmoji} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
 
-function pickRow(p, { hideLock } = {}) {
+function pickRow(p, { hideLock, newlyLocked } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
   const aliveCls = p.alive ? ' alive' : '';
   const mineCls = p.member.id === meId ? ' mine' : '';
+  const bandCls = ` band-${p.band.toLowerCase()}`; // colours the rung on the ladder
+  const pulse = !hideLock && newlyLocked && newlyLocked.has(p.member.id) ? ' just-locked' : '';
+  // Tiebreak number is public (a trust feature) — show it wherever a team is drawn.
+  const tb = p.tiebreakNumber != null ? `<span class="tb" title="tiebreak number (lower = better)">#${p.tiebreakNumber}</span>` : '';
   const bandTag = `<span class="band-tag${p.band === 'CHAMPION' ? ' gold' : ''}">${BAND_LABEL[p.band]}</span>`;
   const statLine = p.matchGD !== null ? `<div class="stat">elim GD ${p.matchGD >= 0 ? '+' : ''}${p.matchGD} · GF ${p.matchGF}</div>` : '';
   // In the what-if explorer, lock flags are meaningless (spec mode 3) — hide them.
-  const status = hideLock ? (p.alive ? '<div class="badge-alive">● alive</div>' : '')
-    : p.locked ? '<div class="badge-locked">🔒 locked</div>'
-    : p.alive ? '<div class="badge-alive">● alive</div>'
-    : '<div class="badge-prov">~ if it stands</div>';
+  const status = hideLock ? (p.alive ? '<span class="badge-alive">Alive</span>' : '')
+    : p.locked ? '<span class="badge-locked">Locked</span>'
+    : p.alive ? '<span class="badge-alive">Alive</span>'
+    : '<span class="badge-prov">If it stands</span>';
   return `
-    <div class="pick${top1}${aliveCls}${mineCls}">
+    <div class="pick${top1}${aliveCls}${mineCls}${pulse}${bandCls}">
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
-        <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''}</div>
+        <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
         <div class="pick-team"><span class="flag">${p.team ? p.team.flagEmoji : ''}</span>${p.team ? esc(p.team.name) : 'unassigned'}</div>
       </div>
       <div class="pick-meta">${bandTag}${statLine}${status}</div>
@@ -111,7 +125,7 @@ function matchLine(m, state, { showTime } = {}) {
   const timeTxt = showTime && k != null
     ? `<span class="ml-time">${new Date(k).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>`
     : '';
-  const statusBadge = m.status === 'in_progress' ? '<span class="ml-live">● LIVE</span>'
+  const statusBadge = m.status === 'in_progress' ? '<span class="ml-live">LIVE</span>'
     : m.status === 'final' ? '<span class="ml-final">FT</span>' : '';
 
   return `<div class="match-line${mineCls}">
@@ -127,16 +141,59 @@ function nav() {
   const h = location.hash;
   const link = (href, label) => `<a href="${href}" class="${h === href || (href === '#' && h === '') ? 'active' : ''}">${label}</a>`;
   return `<nav class="nav">
-    ${link('#', 'Order')}${link('#schedule', 'Schedule')}${link('#bracket', 'Bracket')}${link('#whatif', 'What-if')}${link('#help', 'Help')}${link('#admin', 'Admin')}
-    ${admin ? '<button data-act="signout" class="link-btn">sign out</button>' : ''}
+    <div class="nav-links">${link('#', 'Order')}${link('#schedule', 'Schedule')}${link('#bracket', 'Bracket')}${link('#whatif', 'What-if')}${link('#help', 'Help')}${link('#admin', 'Admin')}</div>
+    <div class="nav-actions">
+      <button data-act="theme" class="icon-btn" title="Switch to ${theme === 'day' ? 'night' : 'day'} theme" aria-label="Switch theme">◐</button>
+      ${admin ? '<button data-act="signout" class="link-btn">sign out</button>' : ''}
+    </div>
   </nav>`;
+}
+
+// The home adapts to the tournament phase (claude.md).
+const PHASE = {
+  predraw: { label: 'Pre-draw', cls: '' },
+  draw: { label: 'Draw set', cls: '' },
+  live: { label: 'Live', cls: 'live' },
+  final: { label: 'Final', cls: 'gold' },
+};
+function phaseOf(state, picks) {
+  if (state.members.filter((m) => m.teamId).length === 0) return 'predraw';
+  if (picks.length === 12 && picks.every((p) => p.locked)) return 'final';
+  if (state.matches.some((m) => m.status === 'final')) return 'live';
+  return 'draw';
+}
+function trustStamps(state) {
+  return `<div class="trust">
+    <span class="stamp">random.org draw</span>
+    <span class="stamp">rules locked ${esc(state.meta?.rulesLockedDate ?? '—')}</span>
+    <span class="stamp">tiebreak numbers public</span>
+  </div>`;
+}
+// One-time confetti when the whole order locks. Self-contained (no library),
+// cleans itself up, and respects reduced-motion.
+function celebrate() {
+  if (reducedMotion()) return;
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  const colors = ['#FACC15', '#6D28D9', '#C81E1E', '#FFFFFF']; // kit: yellow, violet, crimson
+  for (let i = 0; i < 64; i++) {
+    const s = document.createElement('span');
+    s.className = 'confetti';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.background = colors[i % colors.length];
+    s.style.animationDelay = Math.random() * 0.7 + 's';
+    s.style.animationDuration = 2.2 + Math.random() * 1.2 + 's';
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3600);
 }
 
 function meBar(state) {
   const me = state.members.find((x) => x.id === meId);
   if (!me) {
     return `<div class="me-bar">
-      <span>👤 Find your pick:</span>
+      <span>Find your pick:</span>
       <select data-act="setme">
         <option value="">choose your name…</option>
         ${state.members.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}
@@ -148,9 +205,9 @@ function meBar(state) {
   const mine = picks.find((p) => p.member.id === me.id);
   const standing = !team ? 'not assigned yet'
     : !mine ? `${team.flagEmoji} ${esc(team.name)}`
-    : `${team.flagEmoji} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '🔒' : mine.alive ? '(still alive)' : '(if it stands)'}`;
+    : `${team.flagEmoji} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
-    <span>👤 You're <strong>${esc(me.name)}</strong> — ${standing}</span>
+    <span>You're <strong>${esc(me.name)}</strong> — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>
   </div>`;
 }
@@ -162,23 +219,45 @@ function renderOrder(state) {
   const { picks } = computeDraftOrder({ ...state, includeProvisional: viewMode === 'projected' });
   const lockedCount = picks.filter((p) => p.locked).length;
   const unassigned = getUnassignedTeams(state.teams, state.members);
+  const phase = phaseOf(state, picks);
 
-  view().innerHTML = `
-    ${nav()}${meBar(state)}
+  // Just-locked diff: which picks became locked since the last order render?
+  const nowLocked = new Set(picks.filter((p) => p.locked).map((p) => p.member.id));
+  const newlyLocked = new Set([...nowLocked].filter((id) => !prevLocked.has(id)));
+
+  const controls = picks.length ? `
     <div class="toggle">
       <button data-act="mode" data-mode="projected" class="${viewMode === 'projected' ? 'on' : ''}">Projected</button>
       <button data-act="mode" data-mode="locked" class="${viewMode === 'locked' ? 'on' : ''}">Locked only</button>
     </div>
     <div class="mode-banner">
-      ${viewMode === 'projected'
-        ? `<span>📈</span><span><strong>If scores hold.</strong> ${lockedCount}/12 picks are locked 🔒; the rest are provisional.</span>`
-        : `<span>🔒</span><span><strong>Locked order.</strong> ${lockedCount}/12 picks can no longer change.</span>`}
+      ${phase === 'final' ? '<span><strong>The order is final.</strong> Every pick is locked.</span>'
+        : viewMode === 'projected' ? `<span><strong>If scores hold.</strong> ${lockedCount}/12 picks are locked; the rest can still move.</span>`
+        : `<span><strong>Locked order.</strong> ${lockedCount}/12 picks can no longer change.</span>`}
+    </div>` : '';
+
+  const body = picks.length
+    ? `<div class="picks ladder">${picks.map((p) => pickRow(p, { newlyLocked })).join('')}</div>`
+    : `<div class="empty">The draw hasn't been entered yet. Once the 12 teams are assigned in
+        <a href="#admin">admin</a>, the order appears here and updates live as results come in.</div>`;
+
+  view().innerHTML = `
+    ${nav()}${meBar(state)}
+    <div class="statusline">
+      <span class="phase-pill ${PHASE[phase].cls}">${PHASE[phase].label}</span>
+      ${picks.length ? `<span class="lock-tally">${lockedCount}/12 locked</span>` : ''}
     </div>
-    ${orderBlock(state, viewMode)}
+    ${controls}
+    ${body}
     <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
     <div class="unassigned">
       ${unassigned.map((t) => `<span class="chip">${t.flagEmoji} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
-    </div>`;
+    </div>
+    ${trustStamps(state)}`;
+
+  prevLocked = nowLocked;
+  if (phase === 'final' && !celebrated) { celebrated = true; celebrate(); }
+  if (phase !== 'final') celebrated = false;
 }
 
 // ===========================================================================
@@ -187,14 +266,14 @@ function renderOrder(state) {
 function featuredNext(state) {
   const now = Date.now();
   const next = nextMatch(state.matches, now);
-  if (!next) return `<div class="featured done">🏆 Tournament complete — the order is final.</div>`;
+  if (!next) return `<div class="featured done">Tournament complete — the order is final.</div>`;
 
   const tm = teamMap(state);
   const teams = `${teamLabel(tm.get(next.teamA))} <span class="vs">v</span> ${teamLabel(tm.get(next.teamB))}`;
   const k = kickoffMs(next);
   if (next.status === 'in_progress') {
     return `<div class="featured live">
-      <div class="featured-tag">● LIVE NOW</div>
+      <div class="featured-tag is-live">LIVE NOW</div>
       <div class="featured-teams">${teams}</div>
       <div class="featured-score">${next.scoreA ?? 0} – ${next.scoreB ?? 0}</div>
       <div class="featured-sub">${ROUND_LABEL[next.round]}${next.venue ? ' · ' + esc(next.venue) : ''}</div>
@@ -388,7 +467,7 @@ function renderWhatIf(state) {
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
-    <div class="mode-banner"><span>🔮</span><span><strong>What-if explorer.</strong>
+    <div class="mode-banner"><span><strong>What-if explorer.</strong>
       Click who you think advances — the order updates below. Nothing here is saved or shared.
       Imagined games count as 1–0 (so same-band ties fall to tiebreak number).</span></div>
     <div class="admin-actions">
@@ -407,21 +486,21 @@ function renderWhatIf(state) {
 // ===========================================================================
 function renderHelp(state) {
   const ladder = [
-    ['🏆', 'Champion', '1 pick', 'gold'],
-    ['🥈', 'Runner-up', '1 pick', ''],
-    ['🥉', '3rd place', '1 pick', ''],
-    ['4️⃣', '4th place', '1 pick', ''],
-    ['⚔️', 'QF losers', '4 picks — tiebreak within the band', 'band'],
-    ['🚪', 'R16 losers', '8 picks — tiebreak within the band', 'band'],
+    ['band-champion', 'Champion', '1 pick'],
+    ['band-runner_up', 'Runner-up', '1 pick'],
+    ['band-third', '3rd place', '1 pick'],
+    ['band-fourth', '4th place', '1 pick'],
+    ['band-qf_losers', 'QF losers', '4 picks — tiebreak within the band'],
+    ['band-r16_losers', 'R16 losers', '8 picks — tiebreak within the band'],
   ];
   view().innerHTML = `
     ${nav()}
     <h2 class="section-title">How the draft order works</h2>
     <p class="prose">Each of the 12 members is randomly assigned one Round-of-16 team. Your draft pick is
       <strong>how far your team goes</strong> — the further, the earlier you pick. Best finish = pick 1.</p>
-    <div class="ladder">
+    <div class="finish-ladder">
       <div class="ladder-cap">← better pick</div>
-      ${ladder.map(([e, n, d, c]) => `<div class="ladder-row ${c}"><span class="lad-e">${e}</span><span class="lad-n">${n}</span><span class="lad-d">${d}</span></div>`).join('')}
+      ${ladder.map(([cls, n, d]) => `<div class="ladder-row ${cls}"><span class="lad-swatch"></span><span class="lad-n">${n}</span><span class="lad-d">${d}</span></div>`).join('')}
       <div class="ladder-cap">worse pick →</div>
     </div>
     <p class="prose">The top four finishes are each settled by one match (the Final and the 3rd-place game),
@@ -521,6 +600,7 @@ document.addEventListener('click', (e) => {
   const act = btn ? btn.dataset.act : null;
   if (!act) return;
   if (act === 'mode') { viewMode = btn.dataset.mode; render(); }
+  else if (act === 'theme') { theme = theme === 'day' ? 'night' : 'day'; setTheme(theme); applyTheme(theme); render(); }
   else if (act === 'clearme') { setMe(null); render(); }
   else if (act === 'predict') {
     const { match, team } = btn.dataset;
@@ -553,5 +633,6 @@ window.addEventListener('hashchange', render);
 // ===========================================================================
 // wire to the store — re-render on any data or auth change (incl. cross-tab)
 // ===========================================================================
+applyTheme(theme);
 store.subscribe((s) => { appState = s; render(); });
 store.onAuthChanged((isAdmin) => { admin = isAdmin; render(); });

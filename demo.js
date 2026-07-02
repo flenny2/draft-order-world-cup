@@ -12,7 +12,7 @@ const teams = [
   { id: 'ARG', code: 'ARG', name: 'Argentina',  flagEmoji: '🇦🇷' },
   { id: 'FRA', code: 'FRA', name: 'France',      flagEmoji: '🇫🇷' },
   { id: 'BRA', code: 'BRA', name: 'Brazil',      flagEmoji: '🇧🇷' },
-  { id: 'ENG', code: 'ENG', name: 'England',     flagEmoji: '🏴' },
+  { id: 'ENG', code: 'ENG', name: 'England',     flagEmoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
   { id: 'ESP', code: 'ESP', name: 'Spain',       flagEmoji: '🇪🇸' },
   { id: 'POR', code: 'POR', name: 'Portugal',    flagEmoji: '🇵🇹' },
   { id: 'NED', code: 'NED', name: 'Netherlands', flagEmoji: '🇳🇱' },
