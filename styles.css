@@ -215,6 +215,9 @@ a:hover { text-decoration: underline; }
 .admin-actions .hint, .signin .hint { color: var(--gray); font-size: 0.8rem; align-self: center; margin: 0; }
 button.btn-secondary, button.btn-danger { padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--white); color: var(--ink); cursor: pointer; font-size: 0.82rem; font-family: var(--font-body); }
 button.btn-danger { color: var(--secondary); border-color: color-mix(in srgb, var(--secondary) 45%, var(--line)); }
+.save-status { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 999; max-width: min(92vw, 620px); padding: 9px 14px; border-radius: 9px; font-size: 0.84rem; box-shadow: 0 4px 18px rgb(0 0 0 / 0.18); }
+.save-status.error { background: var(--red-bg); color: var(--secondary); border: 1px solid color-mix(in srgb, var(--secondary) 40%, var(--line)); }
+.save-status.saving { background: var(--yellow-bg); color: var(--amber-text); border: 1px solid color-mix(in srgb, var(--tertiary) 55%, var(--line)); }
 .issues { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .issue { padding: 8px 10px; border-radius: 9px; font-size: 0.82rem; }
 .issue.error { background: var(--red-bg); color: var(--secondary); border: 1px solid color-mix(in srgb, var(--secondary) 40%, var(--line)); }

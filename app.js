@@ -47,6 +47,7 @@ let viewMode = 'projected'; // 'projected' | 'locked'
 let meId = getMe();
 let theme = getTheme();
 let tickTimer = null;
+let writeStatus = { pending: 0, error: null }; // last write outcome, from store.onWriteStatus
 let predictions = {}; // what-if explorer sandbox: matchId -> { winner } (never written to store)
 let prevLocked = new Set(); // member ids locked at last order render → drives the just-locked pulse
 let celebrated = false; // fire the final-locks celebration only once per completion
@@ -362,6 +363,14 @@ function matchCard(m, teams) {
       </select>` : ''}
   </div>`;
 }
+// Save toast: fixed to the bottom so it's visible wherever the admin is
+// scrolled. "Saving…" that lingers means the write is queued offline (see
+// store.js); an error means the change was NOT saved and must be redone.
+function saveStatus() {
+  if (writeStatus.error) return `<div class="save-status error" role="alert">Not saved: ${esc(writeStatus.error)}</div>`;
+  if (writeStatus.pending > 0) return `<div class="save-status saving" role="status">Saving… (if this lingers, check your connection)</div>`;
+  return '';
+}
 function issuesBlock(state) {
   const issues = validate(state);
   if (issues.length === 0) return '';
@@ -382,6 +391,7 @@ function renderAdmin(state) {
   }
   view().innerHTML = `
     ${nav()}
+    ${saveStatus()}
     ${issuesBlock(state)}
     <div class="admin-actions">
       <button data-act="load-demo" class="btn-secondary">Load demo tournament</button>
@@ -636,3 +646,6 @@ window.addEventListener('hashchange', render);
 applyTheme(theme);
 store.subscribe((s) => { appState = s; render(); });
 store.onAuthChanged((isAdmin) => { admin = isAdmin; render(); });
+// Re-render on write status too: shows/clears the save toast, and after a
+// BLOCKED write it snaps the admin controls back to the real (unsaved) state.
+store.onWriteStatus((ws) => { writeStatus = ws; render(); });

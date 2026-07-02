@@ -6,6 +6,7 @@
 // untouched:
 //   getState() · subscribe(cb) · isAdmin() · onAuthChanged(cb) · signIn · signOut
 //   setAssignment · setMatch · loadDemo · resetAll
+// Plus onWriteStatus(cb) — pending/error state of admin writes, for the admin UI.
 //
 // SECURITY: firebaseConfig below is NOT a secret — safe to commit. Protection is
 // the database security rule (public read; writes only from the admin UID). Reads
@@ -61,6 +62,14 @@ const authListeners = new Set();
 const emitData = () => { for (const cb of dataListeners) cb(state); };
 const emitAuth = () => { for (const cb of authListeners) cb(isAdmin()); };
 
+// Write status for the admin UI. `pending` counts writes awaiting server ack —
+// while OFFLINE the RTDB queues writes and the promise stays unsettled, so
+// pending never drops: a lingering "Saving…" is itself the offline signal.
+// `error` is the last failed/blocked write's message, cleared by the next success.
+let writeStatus = { pending: 0, error: null };
+const writeListeners = new Set();
+const emitWrite = () => { for (const cb of writeListeners) cb(writeStatus); };
+
 // Realtime read (public). Fires immediately with the current server value, and
 // again on every change — cross-DEVICE now, not just cross-tab. If the DB is
 // still empty (no admin write yet), fall back to the local seed for display.
@@ -94,6 +103,12 @@ export function onAuthChanged(cb) {
   return () => authListeners.delete(cb);
 }
 
+export function onWriteStatus(cb) {
+  writeListeners.add(cb);
+  cb(writeStatus);
+  return () => writeListeners.delete(cb);
+}
+
 export function signIn(email, password) {
   return signInWithEmailAndPassword(auth, email, password)
     .then(() => {})
@@ -108,29 +123,57 @@ function requireAdmin() {
 
 // Write the WHOLE state (single admin, ~KB payload). Optimistically update the
 // local mirror for a snappy UI; the server echo confirms it moments later.
+// Failures don't reject to the caller — they're reported via onWriteStatus (the
+// admin UI's one error surface), and a DENIED write is rolled back by the SDK,
+// whose onValue echo then restores the true state in the mirror.
 function write(next) {
   const withStamp = { ...next, meta: { ...next.meta, lastUpdated: new Date().toISOString() } };
   state = normalize(withStamp);
   emitData();
-  return set(ref(db, STATE_PATH), clone(withStamp));
+  writeStatus = { pending: writeStatus.pending + 1, error: null };
+  emitWrite();
+  return set(ref(db, STATE_PATH), clone(withStamp))
+    .then(() => { writeStatus = { pending: writeStatus.pending - 1, error: null }; emitWrite(); })
+    .catch((e) => { writeStatus = { pending: writeStatus.pending - 1, error: friendlyWriteError(e) }; emitWrite(); });
+}
+
+// The sync guards (not admin / first snapshot not in yet) throw synchronously —
+// route them into the same status channel so every write failure surfaces the
+// same way. The blocked change is simply dropped; the admin redoes it.
+function guardedWrite(build) {
+  try { requireAdmin(); } catch (e) {
+    writeStatus = { ...writeStatus, error: e.message };
+    emitWrite();
+    return Promise.resolve();
+  }
+  return write(build());
 }
 
 export function setAssignment(memberId, { teamId, tiebreakNumber }) {
-  requireAdmin();
-  const members = state.members.map((m) =>
-    m.id === memberId ? { ...m, teamId: teamId || null, tiebreakNumber: tiebreakNumber ?? null } : m);
-  return write({ ...state, members });
+  return guardedWrite(() => {
+    const members = state.members.map((m) =>
+      m.id === memberId ? { ...m, teamId: teamId || null, tiebreakNumber: tiebreakNumber ?? null } : m);
+    return { ...state, members };
+  });
 }
 
 export function setMatch(matchId, patch) {
-  requireAdmin();
-  let matches = state.matches.map((m) => (m.id === matchId ? { ...m, ...patch } : m));
-  matches = resolveBracket(matches, bracketTopology); // auto-feed winners downstream
-  return write({ ...state, matches });
+  return guardedWrite(() => {
+    let matches = state.matches.map((m) => (m.id === matchId ? { ...m, ...patch } : m));
+    matches = resolveBracket(matches, bracketTopology); // auto-feed winners downstream
+    return { ...state, matches };
+  });
 }
 
-export function loadDemo() { requireAdmin(); return write(clone(demoState)); }
-export function resetAll() { requireAdmin(); return write(clone(seed)); }
+export function loadDemo() { return guardedWrite(() => clone(demoState)); }
+export function resetAll() { return guardedWrite(() => clone(seed)); }
+
+// Human message for a failed database write (shown in the admin save toast).
+function friendlyWriteError(e) {
+  const msg = e?.message || String(e);
+  if (/permission[ _-]?denied/i.test(msg)) return 'the database rejected it — are you signed in as the admin account?';
+  return msg;
+}
 
 // Map Firebase auth error codes to human messages for the sign-in form.
 function friendlyAuthError(e) {
