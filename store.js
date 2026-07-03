@@ -39,6 +39,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 const STATE_PATH = 'state'; // the whole app state lives under this one node
+const BACKUP_PATH = 'backup'; // one-slot safety copy of whatever each write replaces
 
 // --- helpers ---------------------------------------------------------------
 const clone = (x) => JSON.parse(JSON.stringify(x)); // also strips `undefined` (RTDB rejects it)
@@ -127,11 +128,17 @@ function requireAdmin() {
 // admin UI's one error surface), and a DENIED write is rolled back by the SDK,
 // whose onValue echo then restores the true state in the mirror.
 function write(next) {
+  const prev = clone(state); // what this write replaces — see backup below
   const withStamp = { ...next, meta: { ...next.meta, lastUpdated: new Date().toISOString() } };
   state = normalize(withStamp);
   emitData();
   writeStatus = { pending: writeStatus.pending + 1, error: null };
   emitWrite();
+  // Best-effort one-slot backup of the replaced state. Makes an accidental
+  // Reset / demo-load recoverable from the Firebase console (copy
+  // /backup/state back over /state). Failures ignored: if this can't land,
+  // the main write below fails too and surfaces via onWriteStatus.
+  set(ref(db, BACKUP_PATH), { savedAt: withStamp.meta.lastUpdated, state: prev }).catch(() => {});
   return set(ref(db, STATE_PATH), clone(withStamp))
     .then(() => { writeStatus = { pending: writeStatus.pending - 1, error: null }; emitWrite(); })
     .catch((e) => { writeStatus = { pending: writeStatus.pending - 1, error: friendlyWriteError(e) }; emitWrite(); });

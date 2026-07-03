@@ -644,6 +644,12 @@ document.addEventListener('click', (e) => {
 
 window.addEventListener('hashchange', render);
 
+// Don't let the tab close while a write is still queued (e.g. offline) — the
+// RTDB web SDK has no disk persistence, so an unsent write dies with the tab.
+window.addEventListener('beforeunload', (e) => {
+  if (writeStatus.pending > 0) { e.preventDefault(); e.returnValue = ''; }
+});
+
 // ===========================================================================
 // wire to the store — re-render on any data or auth change (incl. cross-tab)
 // ===========================================================================

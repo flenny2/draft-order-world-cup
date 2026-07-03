@@ -405,6 +405,12 @@ function fullTournament() {
     v([], [m('89', 'R16', 't1', 't2', { a: 2, b: 1, pens: 't1' })]).includes('error'));
   check('validate: clean data → no issues',
     validate({ members: membersFrom([['t1', 1], ['t2', 2]]), matches: [m('89', 'R16', 't1', 't2', { a: 1, b: 0 })] }).length === 0);
+  check('validate: a team playing itself → error',
+    v([], [m('89', 'R16', 't1', 't1', null)]).includes('error'));
+  check('validate: same team in two matches of one round → error',
+    v([], [m('89', 'R16', 't1', 't2', null), m('90', 'R16', 't1', 't3', null)]).includes('error'));
+  check('validate: same team in different rounds is fine (bracket advance)',
+    !v([], [m('89', 'R16', 't1', 't2', { a: 1, b: 0 }), m('97', 'QF', 't1', 't3', null)]).includes('error'));
 }
 
 // ===========================================================================

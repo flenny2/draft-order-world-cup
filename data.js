@@ -71,10 +71,13 @@ export const matches = [
   // Round of 16 ------------------------------------------------------------
   { id: '89', round: 'R16', slot: 'R16-89', teamA: 'W79', teamB: 'W80', datetimeISO: '2026-07-04T15:00:00-04:00', venue: 'Philadelphia', ...blankResult },
   { id: '90', round: 'R16', slot: 'R16-90', teamA: 'CAN', teamB: 'MAR', datetimeISO: '2026-07-04T18:00:00-05:00', venue: 'Houston',      ...blankResult },
-  // NOTE: Mexico City is UTC-6 and does NOT observe DST; source labeled these EDT.
-  // Stored as sourced (-04:00) — VERIFY and let admin correct to -06:00 if needed.
-  { id: '91', round: 'R16', slot: 'R16-91', teamA: 'W81', teamB: 'W82', datetimeISO: '2026-07-05T15:00:00-04:00', venue: 'Mexico City',  ...blankResult },
-  { id: '92', round: 'R16', slot: 'R16-92', teamA: 'W83', teamB: 'W84', datetimeISO: '2026-07-05T18:00:00-04:00', venue: 'Mexico City',  ...blankResult },
+  // Mexico City is UTC-6 year-round (no DST); the planning source mislabeled
+  // these EDT. The local clock digits were corroborated (FOX: the Jul 5 Azteca
+  // game kicks off 6 PM local / 8 PM ET), so digits stay, offset corrected.
+  // Venues/datetimes are ONLY editable here — re-verify all 8 R16 rows against
+  // TV listings before draw night (see README "Draw-night runbook").
+  { id: '91', round: 'R16', slot: 'R16-91', teamA: 'W81', teamB: 'W82', datetimeISO: '2026-07-05T15:00:00-06:00', venue: 'Mexico City',  ...blankResult },
+  { id: '92', round: 'R16', slot: 'R16-92', teamA: 'W83', teamB: 'W84', datetimeISO: '2026-07-05T18:00:00-06:00', venue: 'Mexico City',  ...blankResult },
   { id: '93', round: 'R16', slot: 'R16-93', teamA: 'W85', teamB: 'W87', datetimeISO: '2026-07-06T15:00:00-05:00', venue: 'Seattle',      ...blankResult },
   { id: '94', round: 'R16', slot: 'R16-94', teamA: 'W86', teamB: 'W88', datetimeISO: '2026-07-06T18:00:00-05:00', venue: 'Arlington',    ...blankResult },
   { id: '95', round: 'R16', slot: 'R16-95', teamA: 'PAR', teamB: 'W77', datetimeISO: '2026-07-07T15:00:00-07:00', venue: 'Vancouver',    ...blankResult },

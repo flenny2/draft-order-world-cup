@@ -287,6 +287,23 @@ export function validate({ members, matches }) {
   const teamIds = assigned.map((m) => m.teamId);
   if (new Set(teamIds).size !== teamIds.length) issues.push({ level: 'error', msg: 'Two members are assigned the same team.' });
 
+  // Team-slot sanity (any status): a team can't play itself, nor appear in two
+  // matches of the same round — both reachable through the admin R16 selects.
+  const seenByRound = new Map();
+  for (const m of matches) {
+    if (m.teamA != null && m.teamA === m.teamB) {
+      issues.push({ level: 'error', msg: `Match ${m.id}: a team can't play itself.` });
+      continue; // don't also count it as a same-round duplicate
+    }
+    let seen = seenByRound.get(m.round);
+    if (!seen) seenByRound.set(m.round, (seen = new Set()));
+    for (const t of [m.teamA, m.teamB]) {
+      if (t == null) continue;
+      if (seen.has(t)) issues.push({ level: 'error', msg: `Match ${m.id}: ${t} appears in two ${m.round} matches.` });
+      seen.add(t);
+    }
+  }
+
   // Pens ⇒ the recorded score is a draw (rules 9–10); a non-pens knockout can't tie.
   for (const m of matches) {
     if (m.status !== 'final') continue;
