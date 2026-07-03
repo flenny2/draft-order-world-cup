@@ -62,7 +62,7 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // ===========================================================================
 // Shared renderers
 // ===========================================================================
-function teamLabel(team) { return team ? `${team.flagEmoji} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
+function teamLabel(team) { return team ? `${esc(team.flagEmoji)} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
 
 function pickRow(p, { hideLock, newlyLocked } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
@@ -84,7 +84,7 @@ function pickRow(p, { hideLock, newlyLocked } = {}) {
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
         <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
-        <div class="pick-team"><span class="flag">${p.team ? p.team.flagEmoji : ''}</span>${p.team ? esc(p.team.name) : 'unassigned'}</div>
+        <div class="pick-team"><span class="flag">${p.team ? esc(p.team.flagEmoji) : ''}</span>${p.team ? esc(p.team.name) : 'unassigned'}</div>
       </div>
       <div class="pick-meta">${bandTag}${statLine}${status}</div>
     </div>`;
@@ -130,7 +130,7 @@ function matchLine(m, state, { showTime } = {}) {
     : m.status === 'final' ? '<span class="ml-final">FT</span>' : '';
 
   return `<div class="match-line${mineCls}">
-    <div class="ml-head">${ROUND_LABEL[m.round]} · #${m.id}${m.venue ? ' · ' + esc(m.venue) : ''} ${statusBadge} ${pens} ${timeTxt}</div>
+    <div class="ml-head">${ROUND_LABEL[m.round]} · #${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''} ${statusBadge} ${pens} ${timeTxt}</div>
     ${side(m.teamA, m.scoreA)}${side(m.teamB, m.scoreB)}
   </div>`;
 }
@@ -140,7 +140,10 @@ function matchLine(m, state, { showTime } = {}) {
 // ===========================================================================
 function nav() {
   const h = location.hash;
-  const link = (href, label) => `<a href="${href}" class="${h === href || (href === '#' && h === '') ? 'active' : ''}">${label}</a>`;
+  const link = (href, label) => {
+    const on = h === href || (href === '#' && h === '');
+    return `<a href="${href}" class="${on ? 'active' : ''}"${on ? ' aria-current="page"' : ''}>${label}</a>`;
+  };
   return `<nav class="nav">
     <div class="nav-links">${link('#', 'Order')}${link('#schedule', 'Schedule')}${link('#bracket', 'Bracket')}${link('#whatif', 'What-if')}${link('#help', 'Help')}${link('#admin', 'Admin')}</div>
     <div class="nav-actions">
@@ -176,6 +179,7 @@ function celebrate() {
   if (reducedMotion()) return;
   const layer = document.createElement('div');
   layer.className = 'confetti-layer';
+  layer.setAttribute('aria-hidden', 'true'); // purely decorative — hide from screen readers
   const colors = ['#FACC15', '#6D28D9', '#C81E1E', '#FFFFFF']; // kit: yellow, violet, crimson
   for (let i = 0; i < 64; i++) {
     const s = document.createElement('span');
@@ -195,9 +199,9 @@ function meBar(state) {
   if (!me) {
     return `<div class="me-bar">
       <span>Find your pick:</span>
-      <select data-act="setme">
+      <select data-act="setme" aria-label="Find your name">
         <option value="">choose your name…</option>
-        ${state.members.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}
+        ${state.members.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')}
       </select>
     </div>`;
   }
@@ -205,8 +209,8 @@ function meBar(state) {
   const { picks } = computeDraftOrder({ ...state, includeProvisional: true });
   const mine = picks.find((p) => p.member.id === me.id);
   const standing = !team ? 'not assigned yet'
-    : !mine ? `${team.flagEmoji} ${esc(team.name)}`
-    : `${team.flagEmoji} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
+    : !mine ? `${esc(team.flagEmoji)} ${esc(team.name)}`
+    : `${esc(team.flagEmoji)} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
     <span>You're <strong>${esc(me.name)}</strong> — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>
@@ -252,7 +256,7 @@ function renderOrder(state) {
     ${body}
     <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
     <div class="unassigned">
-      ${unassigned.map((t) => `<span class="chip">${t.flagEmoji} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
+      ${unassigned.map((t) => `<span class="chip">${esc(t.flagEmoji)} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
     </div>
     ${trustStamps(state)}`;
 
@@ -324,15 +328,15 @@ function renderBracket(state) {
 // ===========================================================================
 function teamOptions(teams, selected) {
   return `<option value="">— TBD —</option>` +
-    teams.map((t) => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${t.flagEmoji} ${esc(t.name)}</option>`).join('');
+    teams.map((t) => `<option value="${esc(t.id)}" ${t.id === selected ? 'selected' : ''}>${esc(t.flagEmoji)} ${esc(t.name)}</option>`).join('');
 }
 function assignmentRow(member, teams) {
   const tbOpts = `<option value="">tb#</option>` +
     Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${member.tiebreakNumber === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('');
-  return `<div class="assign-row" data-assign-row="${member.id}">
+  return `<div class="assign-row" data-assign-row="${esc(member.id)}">
     <span class="assign-name">${esc(member.name)}</span>
-    <select data-act="assign" data-field="teamId">${teamOptions(teams, member.teamId)}</select>
-    <select data-act="assign" data-field="tiebreak" title="tiebreak number (1=best)">${tbOpts}</select>
+    <select data-act="assign" data-field="teamId" aria-label="${esc(member.name)} — assigned team">${teamOptions(teams, member.teamId)}</select>
+    <select data-act="assign" data-field="tiebreak" title="tiebreak number (1=best)" aria-label="${esc(member.name)} — tiebreak number">${tbOpts}</select>
   </div>`;
 }
 function matchCard(m, teams) {
@@ -344,22 +348,22 @@ function matchCard(m, teams) {
        <select data-act="match" data-field="teamB">${teamOptions(teams, m.teamB)}</select>`
     : `<span class="auto-team">${esc(nameOf(m.teamA))}</span><span class="vs">v</span><span class="auto-team">${esc(nameOf(m.teamB))}</span>`;
   const opt = (v, label, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`;
-  return `<div class="match-card" data-match-card="${m.id}">
-    <div class="match-head"><strong>${ROUND_LABEL[m.round]}</strong> · #${m.id}${m.venue ? ' · ' + esc(m.venue) : ''}</div>
+  return `<div class="match-card" data-match-card="${esc(m.id)}">
+    <div class="match-head"><strong>${ROUND_LABEL[m.round]}</strong> · #${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''}</div>
     <div class="match-teams">${teamCell}</div>
     <div class="match-result">
-      <input type="number" min="0" data-act="match" data-field="scoreA" value="${m.scoreA ?? ''}" placeholder="–" />
+      <input type="number" min="0" data-act="match" data-field="scoreA" value="${m.scoreA ?? ''}" placeholder="–" aria-label="Score — ${esc(nameOf(m.teamA))}" />
       <span class="dash">–</span>
-      <input type="number" min="0" data-act="match" data-field="scoreB" value="${m.scoreB ?? ''}" placeholder="–" />
-      <select data-act="match" data-field="status">
+      <input type="number" min="0" data-act="match" data-field="scoreB" value="${m.scoreB ?? ''}" placeholder="–" aria-label="Score — ${esc(nameOf(m.teamB))}" />
+      <select data-act="match" data-field="status" aria-label="Match status">
         ${opt('scheduled', 'scheduled', m.status)}${opt('in_progress', 'live', m.status)}${opt('final', 'final', m.status)}
       </select>
     </div>
     <label class="pens"><input type="checkbox" data-act="match" data-field="pens" ${m.decidedByPens ? 'checked' : ''}/> pens (score = end of ET)</label>
-    ${m.decidedByPens ? `<select data-act="match" data-field="penWinner" title="who won the shootout">
+    ${m.decidedByPens ? `<select data-act="match" data-field="penWinner" title="who won the shootout" aria-label="Shootout winner">
         <option value="">shootout winner…</option>
-        <option value="${m.teamA ?? ''}" ${m.penWinner === m.teamA ? 'selected' : ''}>${esc(nameOf(m.teamA))}</option>
-        <option value="${m.teamB ?? ''}" ${m.penWinner === m.teamB ? 'selected' : ''}>${esc(nameOf(m.teamB))}</option>
+        <option value="${esc(m.teamA ?? '')}" ${m.penWinner === m.teamA ? 'selected' : ''}>${esc(nameOf(m.teamA))}</option>
+        <option value="${esc(m.teamB ?? '')}" ${m.penWinner === m.teamB ? 'selected' : ''}>${esc(nameOf(m.teamB))}</option>
       </select>` : ''}
   </div>`;
 }
@@ -381,7 +385,7 @@ function renderAdmin(state) {
     view().innerHTML = `${nav()}
       <form class="signin" data-signin>
         <h2>Admin sign in</h2>
-        <p class="hint">Mock auth for now — any email + password works. Firebase will replace this with the real admin login in Phase&nbsp;2b.</p>
+        <p class="hint">Commissioner sign-in for entering results. Everything else on the site is public — leaguemates never need an account.</p>
         <input type="email" data-field="email" placeholder="email" autocomplete="username" />
         <input type="password" data-field="password" placeholder="password" autocomplete="current-password" />
         <button type="button" data-act="signin">Sign in</button>
@@ -403,7 +407,7 @@ function renderAdmin(state) {
     <div class="match-list">${state.matches.map((m) => matchCard(m, state.teams)).join('')}</div>
     <h2 class="section-title">League update (paste into the group chat)</h2>
     <div class="update-box">
-      <textarea id="update-text" class="update-text" readonly rows="14">${esc(formatUpdate({ state, baseline: getBaseline(), url: publicUrl(), now: Date.now() }))}</textarea>
+      <textarea id="update-text" class="update-text" readonly rows="14" aria-label="League update text">${esc(formatUpdate({ state, baseline: getBaseline(), url: publicUrl(), now: Date.now() }))}</textarea>
       <div class="admin-actions">
         <button data-act="copy-update" class="btn-secondary">Copy</button>
         <button data-act="mark-sent" class="btn-secondary">Mark as sent (reset "since last update")</button>
@@ -445,8 +449,8 @@ function matchInsight(state, preds, m) {
   if (!owners.length) return '';
   const orderA = orderFor(state, { ...preds, [m.id]: { winner: m.teamA } });
   const orderB = orderFor(state, { ...preds, [m.id]: { winner: m.teamB } });
-  const fa = tm.get(m.teamA)?.flagEmoji ?? '';
-  const fb = tm.get(m.teamB)?.flagEmoji ?? '';
+  const fa = esc(tm.get(m.teamA)?.flagEmoji ?? '');
+  const fb = esc(tm.get(m.teamB)?.flagEmoji ?? '');
   return owners.map((o) => `<div class="insight">${esc(o.name)}: pick ${pickOf(orderA, o.id) ?? '–'} if ${fa}, pick ${pickOf(orderB, o.id) ?? '–'} if ${fb}</div>`).join('');
 }
 
@@ -457,11 +461,11 @@ function explorerMatchCard(m, state, preds) {
   const btn = (teamId) => {
     const t = tm.get(teamId);
     const owner = mbt.get(teamId);
-    return `<button class="pred-btn${chosen === teamId ? ' on' : ''}" data-act="predict" data-match="${m.id}" data-team="${teamId}">
+    return `<button class="pred-btn${chosen === teamId ? ' on' : ''}" data-act="predict" data-match="${esc(m.id)}" data-team="${esc(teamId)}">
       ${teamLabel(t)}${owner ? `<span class="ml-owner"> ${esc(owner.name)}</span>` : ''}</button>`;
   };
   return `<div class="pred-card">
-    <div class="ml-head">${ROUND_LABEL[m.round]} · #${m.id}</div>
+    <div class="ml-head">${ROUND_LABEL[m.round]} · #${esc(m.id)}</div>
     <div class="pred-choices">${btn(m.teamA)}${btn(m.teamB)}</div>
     ${matchInsight(state, preds, m)}
   </div>`;
@@ -628,7 +632,7 @@ document.addEventListener('click', (e) => {
   }
   else if (act === 'mark-sent') { setBaseline(snapshot(appState)); render(); }
   else if (act === 'signout') store.signOut();
-  else if (act === 'load-demo') store.loadDemo();
+  else if (act === 'load-demo') { if (confirm('Load the DEMO tournament? This overwrites the live data for everyone.')) store.loadDemo(); }
   else if (act === 'reset') { if (confirm('Reset all data to the blank seed?')) store.resetAll(); }
   else if (act === 'signin') {
     const form = e.target.closest('[data-signin]');
