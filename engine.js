@@ -175,9 +175,13 @@ function compareEntries(a, b) {
   if (LOSER_BANDS.has(a.band)) {
     if (a.matchGD !== b.matchGD) return b.matchGD - a.matchGD; // higher (less negative) GD = better pick
     if (a.matchGF !== b.matchGF) return b.matchGF - a.matchGF; // more goals scored = better pick
-    return (a.tiebreakNumber ?? Infinity) - (b.tiebreakNumber ?? Infinity); // lower number = better pick
   }
-  return (a.tiebreakNumber ?? Infinity) - (b.tiebreakNumber ?? Infinity);
+  const tbA = a.tiebreakNumber ?? Infinity, tbB = b.tiebreakNumber ?? Infinity; // lower number = better pick
+  if (tbA !== tbB) return tbA - tbB;
+  // Total-order fallback for two missing numbers (a mid-draw-entry state that
+  // validate warns about): Infinity − Infinity is NaN, which sort treats as
+  // "equal", so without this the order would depend on the members-array order.
+  return a.member.id < b.member.id ? -1 : a.member.id > b.member.id ? 1 : 0;
 }
 
 // --- The one public entry point --------------------------------------------

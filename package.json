@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "node engine.test.js",
+    "simulate": "node simulate.js",
     "serve": "python3 -m http.server 8000"
   }
 }

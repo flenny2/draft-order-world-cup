@@ -346,6 +346,21 @@ function fullTournament() {
   check('R3.validate flags the missing pens score as an error',
     validate({ members: [], matches: [half[0]] }).some((i) => i.level === 'error'));
 }
+{
+  // R5: two assigned teams with NO tiebreak numbers yet and identical GD/GF —
+  // the comparator used to compute Infinity−Infinity = NaN (sort treats that as
+  // "equal"), so the order silently depended on the members-array order.
+  const matches = [
+    m('89', 'R16', 't1', 't2', { a: 1, b: 0 }),
+    m('90', 'R16', 't3', 't4', { a: 1, b: 0 }),
+  ];
+  const members = membersFrom([['t2', null], ['t4', null]]);
+  const a = computeDraftOrder({ teams: T, members, matches });
+  const b = computeDraftOrder({ teams: T, members: [...members].reverse(), matches });
+  check('R5.missing tiebreak numbers: order independent of members-array order',
+    eq(a.picks.map((p) => p.team.id), b.picks.map((p) => p.team.id)),
+    `${a.picks.map((p) => p.team.id)} vs ${b.picks.map((p) => p.team.id)}`);
+}
 
 // ===========================================================================
 // Phase-2 helpers — auto-populate (resolveBracket) and validation. These guard
