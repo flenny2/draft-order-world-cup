@@ -86,16 +86,20 @@ export const matches = [
   { id: '95', round: 'R16', slot: 'R16-95', teamA: 'EGY', teamB: 'ARG', datetimeISO: '2026-07-07T12:00:00-04:00', venue: 'Atlanta',         ...blankResult },
   { id: '96', round: 'R16', slot: 'R16-96', teamA: 'SUI', teamB: 'COL', datetimeISO: '2026-07-07T16:00:00-04:00', venue: 'Vancouver',       ...blankResult },
   // Quarterfinals ----------------------------------------------------------
-  { id: '97',  round: 'QF', slot: 'QF-97',  teamA: null, teamB: null, datetimeISO: '2026-07-09T20:00:00-04:00', venue: 'Foxborough',    ...blankResult },
-  { id: '98',  round: 'QF', slot: 'QF-98',  teamA: null, teamB: null, datetimeISO: '2026-07-10T20:00:00-07:00', venue: 'Inglewood',     ...blankResult },
-  { id: '99',  round: 'QF', slot: 'QF-99',  teamA: null, teamB: null, datetimeISO: '2026-07-11T15:00:00-04:00', venue: 'Miami Gardens', ...blankResult },
-  { id: '100', round: 'QF', slot: 'QF-100', teamA: null, teamB: null, datetimeISO: '2026-07-11T18:00:00-05:00', venue: 'Kansas City',   ...blankResult },
+  // QF/SF/3rd/Final kickoffs verified 2026-07-04 against the official schedule
+  // (Wikipedia knockout-stage page, corroborated by ESPN/CBS Boston). The old
+  // researched values assumed US primetime; official times target European
+  // evening TV (~3–4 PM ET). Venue-local offsets, per the convention above.
+  { id: '97',  round: 'QF', slot: 'QF-97',  teamA: null, teamB: null, datetimeISO: '2026-07-09T16:00:00-04:00', venue: 'Foxborough',    ...blankResult },
+  { id: '98',  round: 'QF', slot: 'QF-98',  teamA: null, teamB: null, datetimeISO: '2026-07-10T12:00:00-07:00', venue: 'Inglewood',     ...blankResult },
+  { id: '99',  round: 'QF', slot: 'QF-99',  teamA: null, teamB: null, datetimeISO: '2026-07-11T17:00:00-04:00', venue: 'Miami Gardens', ...blankResult },
+  { id: '100', round: 'QF', slot: 'QF-100', teamA: null, teamB: null, datetimeISO: '2026-07-11T20:00:00-05:00', venue: 'Kansas City',   ...blankResult },
   // Semifinals -------------------------------------------------------------
-  { id: '101', round: 'SF', slot: 'SF-101', teamA: null, teamB: null, datetimeISO: '2026-07-14T20:00:00-05:00', venue: 'Arlington',     ...blankResult },
-  { id: '102', round: 'SF', slot: 'SF-102', teamA: null, teamB: null, datetimeISO: '2026-07-15T20:00:00-04:00', venue: 'Atlanta',       ...blankResult },
+  { id: '101', round: 'SF', slot: 'SF-101', teamA: null, teamB: null, datetimeISO: '2026-07-14T14:00:00-05:00', venue: 'Arlington',     ...blankResult },
+  { id: '102', round: 'SF', slot: 'SF-102', teamA: null, teamB: null, datetimeISO: '2026-07-15T15:00:00-04:00', venue: 'Atlanta',       ...blankResult },
   // Third-place & Final ----------------------------------------------------
-  { id: '3rd',   round: '3rd',   slot: '3rd',   teamA: null, teamB: null, datetimeISO: '2026-07-18T15:00:00-04:00', venue: 'Miami Gardens',  ...blankResult },
-  { id: 'final', round: 'Final', slot: 'Final', teamA: null, teamB: null, datetimeISO: '2026-07-19T20:00:00-04:00', venue: 'East Rutherford', ...blankResult },
+  { id: '3rd',   round: '3rd',   slot: '3rd',   teamA: null, teamB: null, datetimeISO: '2026-07-18T17:00:00-04:00', venue: 'Miami Gardens',  ...blankResult },
+  { id: 'final', round: 'Final', slot: 'Final', teamA: null, teamB: null, datetimeISO: '2026-07-19T15:00:00-04:00', venue: 'East Rutherford', ...blankResult },
 ];
 
 // --- Bracket topology: fixed wiring so a final result auto-feeds the next slot.
