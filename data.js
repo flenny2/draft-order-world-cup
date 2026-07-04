@@ -19,25 +19,28 @@
 // (out of play) iff no member holds its id — we derive that, not store a flag,
 // so there is a single source of truth (see getUnassignedTeams in engine.js).
 export const teams = [
-  // Known R16 participants (per the researched fixture skeleton).
-  { id: 'CAN', code: 'CAN', name: 'Canada',   flagEmoji: '🇨🇦' },
-  { id: 'MAR', code: 'MAR', name: 'Morocco',  flagEmoji: '🇲🇦' },
-  { id: 'PAR', code: 'PAR', name: 'Paraguay', flagEmoji: '🇵🇾' },
-  { id: 'BRA', code: 'BRA', name: 'Brazil',   flagEmoji: '🇧🇷' },
-  // Unknown slots — winners of the listed Round-of-32 matches. Real nation gets
-  // patched in by admin once R32 resolves. flagEmoji '🏳️' = TBD.
-  { id: 'W77', code: 'W77', name: 'Winner R32-77', flagEmoji: '🏳️' },
-  { id: 'W78', code: 'W78', name: 'Winner R32-78', flagEmoji: '🏳️' },
-  { id: 'W79', code: 'W79', name: 'Winner R32-79', flagEmoji: '🏳️' },
-  { id: 'W80', code: 'W80', name: 'Winner R32-80', flagEmoji: '🏳️' },
-  { id: 'W81', code: 'W81', name: 'Winner R32-81', flagEmoji: '🏳️' },
-  { id: 'W82', code: 'W82', name: 'Winner R32-82', flagEmoji: '🏳️' },
-  { id: 'W83', code: 'W83', name: 'Winner R32-83', flagEmoji: '🏳️' },
-  { id: 'W84', code: 'W84', name: 'Winner R32-84', flagEmoji: '🏳️' },
-  { id: 'W85', code: 'W85', name: 'Winner R32-85', flagEmoji: '🏳️' },
-  { id: 'W86', code: 'W86', name: 'Winner R32-86', flagEmoji: '🏳️' },
-  { id: 'W87', code: 'W87', name: 'Winner R32-87', flagEmoji: '🏳️' },
-  { id: 'W88', code: 'W88', name: 'Winner R32-88', flagEmoji: '🏳️' },
+  // The confirmed 16 Round-of-16 teams, entered draw night (2026-07-04) from the
+  // official R16 schedule. `id` is stable and is what matches/members reference.
+  // A team is "unassigned" (out of play) iff no member holds its id — that's
+  // derived, not stored (see getUnassignedTeams in engine.js). Presentation shows
+  // a circular SVG flag derived from flagEmoji (app.js flag()), so the emoji must
+  // be the correct nation (England uses the tag-sequence flag).
+  { id: 'ARG', code: 'ARG', name: 'Argentina',   flagEmoji: '🇦🇷' },
+  { id: 'BEL', code: 'BEL', name: 'Belgium',     flagEmoji: '🇧🇪' },
+  { id: 'BRA', code: 'BRA', name: 'Brazil',      flagEmoji: '🇧🇷' },
+  { id: 'CAN', code: 'CAN', name: 'Canada',      flagEmoji: '🇨🇦' },
+  { id: 'COL', code: 'COL', name: 'Colombia',    flagEmoji: '🇨🇴' },
+  { id: 'EGY', code: 'EGY', name: 'Egypt',       flagEmoji: '🇪🇬' },
+  { id: 'ENG', code: 'ENG', name: 'England',     flagEmoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { id: 'FRA', code: 'FRA', name: 'France',      flagEmoji: '🇫🇷' },
+  { id: 'MEX', code: 'MEX', name: 'Mexico',      flagEmoji: '🇲🇽' },
+  { id: 'MAR', code: 'MAR', name: 'Morocco',     flagEmoji: '🇲🇦' },
+  { id: 'NOR', code: 'NOR', name: 'Norway',      flagEmoji: '🇳🇴' },
+  { id: 'PAR', code: 'PAR', name: 'Paraguay',    flagEmoji: '🇵🇾' },
+  { id: 'POR', code: 'POR', name: 'Portugal',    flagEmoji: '🇵🇹' },
+  { id: 'ESP', code: 'ESP', name: 'Spain',       flagEmoji: '🇪🇸' },
+  { id: 'SUI', code: 'SUI', name: 'Switzerland', flagEmoji: '🇨🇭' },
+  { id: 'USA', code: 'USA', name: 'USA',         flagEmoji: '🇺🇸' },
 ];
 
 // --- Members: the 12 league players ---------------------------------------
@@ -69,19 +72,19 @@ const blankResult = { status: 'scheduled', scoreA: null, scoreB: null, decidedBy
 
 export const matches = [
   // Round of 16 ------------------------------------------------------------
-  { id: '89', round: 'R16', slot: 'R16-89', teamA: 'W79', teamB: 'W80', datetimeISO: '2026-07-04T15:00:00-04:00', venue: 'Philadelphia', ...blankResult },
-  { id: '90', round: 'R16', slot: 'R16-90', teamA: 'CAN', teamB: 'MAR', datetimeISO: '2026-07-04T18:00:00-05:00', venue: 'Houston',      ...blankResult },
-  // Mexico City is UTC-6 year-round (no DST); the planning source mislabeled
-  // these EDT. The local clock digits were corroborated (FOX: the Jul 5 Azteca
-  // game kicks off 6 PM local / 8 PM ET), so digits stay, offset corrected.
-  // Venues/datetimes are ONLY editable here — re-verify all 8 R16 rows against
-  // TV listings before draw night (see README "Draw-night runbook").
-  { id: '91', round: 'R16', slot: 'R16-91', teamA: 'W81', teamB: 'W82', datetimeISO: '2026-07-05T15:00:00-06:00', venue: 'Mexico City',  ...blankResult },
-  { id: '92', round: 'R16', slot: 'R16-92', teamA: 'W83', teamB: 'W84', datetimeISO: '2026-07-05T18:00:00-06:00', venue: 'Mexico City',  ...blankResult },
-  { id: '93', round: 'R16', slot: 'R16-93', teamA: 'W85', teamB: 'W87', datetimeISO: '2026-07-06T15:00:00-05:00', venue: 'Seattle',      ...blankResult },
-  { id: '94', round: 'R16', slot: 'R16-94', teamA: 'W86', teamB: 'W88', datetimeISO: '2026-07-06T18:00:00-05:00', venue: 'Arlington',    ...blankResult },
-  { id: '95', round: 'R16', slot: 'R16-95', teamA: 'PAR', teamB: 'W77', datetimeISO: '2026-07-07T15:00:00-07:00', venue: 'Vancouver',    ...blankResult },
-  { id: '96', round: 'R16', slot: 'R16-96', teamA: 'BRA', teamB: 'W78', datetimeISO: '2026-07-07T18:00:00-07:00', venue: 'Vancouver',    ...blankResult },
+  // Confirmed fixtures from the official R16 schedule (entered 2026-07-04). Times
+  // are the ET broadcast time encoded at the EDT offset (-04:00) — an unambiguous
+  // absolute instant; the app renders each in the VIEWER's local zone, and `venue`
+  // is display-only. Match ids 89–96 are the FIFA numbers and feed the QFs via
+  // bracketTopology below, so they must not be renumbered.
+  { id: '89', round: 'R16', slot: 'R16-89', teamA: 'PAR', teamB: 'FRA', datetimeISO: '2026-07-04T17:00:00-04:00', venue: 'Philadelphia',   ...blankResult },
+  { id: '90', round: 'R16', slot: 'R16-90', teamA: 'CAN', teamB: 'MAR', datetimeISO: '2026-07-04T13:00:00-04:00', venue: 'Houston',        ...blankResult },
+  { id: '91', round: 'R16', slot: 'R16-91', teamA: 'BRA', teamB: 'NOR', datetimeISO: '2026-07-05T16:00:00-04:00', venue: 'East Rutherford', ...blankResult },
+  { id: '92', round: 'R16', slot: 'R16-92', teamA: 'MEX', teamB: 'ENG', datetimeISO: '2026-07-05T20:00:00-04:00', venue: 'Mexico City',     ...blankResult },
+  { id: '93', round: 'R16', slot: 'R16-93', teamA: 'ESP', teamB: 'POR', datetimeISO: '2026-07-06T15:00:00-04:00', venue: 'Arlington',       ...blankResult },
+  { id: '94', round: 'R16', slot: 'R16-94', teamA: 'BEL', teamB: 'USA', datetimeISO: '2026-07-06T20:00:00-04:00', venue: 'Seattle',         ...blankResult },
+  { id: '95', round: 'R16', slot: 'R16-95', teamA: 'EGY', teamB: 'ARG', datetimeISO: '2026-07-07T12:00:00-04:00', venue: 'Atlanta',         ...blankResult },
+  { id: '96', round: 'R16', slot: 'R16-96', teamA: 'SUI', teamB: 'COL', datetimeISO: '2026-07-07T16:00:00-04:00', venue: 'Vancouver',       ...blankResult },
   // Quarterfinals ----------------------------------------------------------
   { id: '97',  round: 'QF', slot: 'QF-97',  teamA: null, teamB: null, datetimeISO: '2026-07-09T20:00:00-04:00', venue: 'Foxborough',    ...blankResult },
   { id: '98',  round: 'QF', slot: 'QF-98',  teamA: null, teamB: null, datetimeISO: '2026-07-10T20:00:00-07:00', venue: 'Inglewood',     ...blankResult },
