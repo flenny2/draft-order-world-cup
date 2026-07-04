@@ -23,6 +23,34 @@ const BAND_LABEL = {
 const ROUND_LABEL = { R16: 'Round of 16', QF: 'Quarterfinal', SF: 'Semifinal', '3rd': '3rd-place game', Final: 'Final' };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// Country flag → self-hosted circular SVG (circle-flags, MIT, in /flags). The ISO
+// code is derived from the team's flag emoji (which already encodes it), so no
+// data change is needed and admin authoring is unchanged. A TBD/placeholder team
+// (white-flag emoji) has no country, so it renders a neutral disc. Rendered as an
+// <img> from a same-origin file — no third-party request, and any script embedded
+// in an SVG can't execute through <img>. Decorative (alt=""): the team name is
+// always adjacent, so screen readers must not announce the flag twice.
+function isoFromFlag(emoji) {
+  if (!emoji) return null;
+  const cps = [...emoji].map((c) => c.codePointAt(0));
+  // regional-indicator pair → ISO 3166-1 alpha-2 (🇧🇷 → "br")
+  if (cps.length >= 2 && cps[0] >= 0x1F1E6 && cps[0] <= 0x1F1FF && cps[1] >= 0x1F1E6 && cps[1] <= 0x1F1FF)
+    return String.fromCharCode(cps[0] - 0x1F1E6 + 97, cps[1] - 0x1F1E6 + 97);
+  // tag sequence for the UK home nations (England/Scotland/Wales)
+  if (cps[0] === 0x1F3F4) {
+    const tags = cps.slice(1).filter((c) => c >= 0xE0061 && c <= 0xE007A).map((c) => String.fromCharCode(c - 0xE0061 + 97)).join('');
+    return { gbeng: 'gb-eng', gbsct: 'gb-sct', gbwls: 'gb-wls' }[tags] ?? null;
+  }
+  return null;
+}
+function flag(team) {
+  if (!team) return '';
+  const iso = isoFromFlag(team.flagEmoji);
+  return iso
+    ? `<img class="flag" src="flags/${iso}.svg" alt="" width="24" height="24" loading="lazy" />`
+    : '<span class="flag flag-tbd" aria-hidden="true"></span>';
+}
 const ME_KEY = 'wcdraft.me.v1';
 const getMe = () => { try { return localStorage.getItem(ME_KEY); } catch { return null; } };
 const setMe = (id) => { try { id ? localStorage.setItem(ME_KEY, id) : localStorage.removeItem(ME_KEY); } catch {} };
@@ -62,7 +90,7 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // ===========================================================================
 // Shared renderers
 // ===========================================================================
-function teamLabel(team) { return team ? `${esc(team.flagEmoji)} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
+function teamLabel(team) { return team ? `${flag(team)} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
 
 function pickRow(p, { hideLock, newlyLocked } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
@@ -84,7 +112,7 @@ function pickRow(p, { hideLock, newlyLocked } = {}) {
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
         <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
-        <div class="pick-team"><span class="flag">${p.team ? esc(p.team.flagEmoji) : ''}</span>${p.team ? esc(p.team.name) : 'unassigned'}</div>
+        <div class="pick-team">${flag(p.team)}<span class="team-name">${p.team ? esc(p.team.name) : 'unassigned'}</span></div>
       </div>
       <div class="pick-meta">${bandTag}${statLine}${status}</div>
     </div>`;
@@ -180,7 +208,7 @@ function celebrate() {
   const layer = document.createElement('div');
   layer.className = 'confetti-layer';
   layer.setAttribute('aria-hidden', 'true'); // purely decorative — hide from screen readers
-  const colors = ['#FACC15', '#6D28D9', '#C81E1E', '#FFFFFF']; // kit: yellow, violet, crimson
+  const colors = ['#c6a24c', '#d8452f', '#f3ecd9', '#0e6b52']; // collectible: foil gold, coral, cream, green
   for (let i = 0; i < 64; i++) {
     const s = document.createElement('span');
     s.className = 'confetti';
@@ -209,8 +237,8 @@ function meBar(state) {
   const { picks } = computeDraftOrder({ ...state, includeProvisional: true });
   const mine = picks.find((p) => p.member.id === me.id);
   const standing = !team ? 'not assigned yet'
-    : !mine ? `${esc(team.flagEmoji)} ${esc(team.name)}`
-    : `${esc(team.flagEmoji)} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
+    : !mine ? `${flag(team)} ${esc(team.name)}`
+    : `${flag(team)} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
     <span>You're <strong>${esc(me.name)}</strong> — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>
@@ -256,7 +284,7 @@ function renderOrder(state) {
     ${body}
     <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
     <div class="unassigned">
-      ${unassigned.map((t) => `<span class="chip">${esc(t.flagEmoji)} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
+      ${unassigned.map((t) => `<span class="chip">${flag(t)} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
     </div>
     ${trustStamps(state)}`;
 
