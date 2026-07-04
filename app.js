@@ -44,11 +44,11 @@ function isoFromFlag(emoji) {
   }
   return null;
 }
-function flag(team) {
+function flag(team, alt = '') {
   if (!team) return '';
   const iso = isoFromFlag(team.flagEmoji);
   return iso
-    ? `<img class="flag" src="flags/${iso}.svg" alt="" width="24" height="24" loading="lazy" />`
+    ? `<img class="flag" src="flags/${iso}.svg" alt="${esc(alt)}" width="24" height="24" loading="lazy" />`
     : '<span class="flag flag-tbd" aria-hidden="true"></span>';
 }
 const ME_KEY = 'wcdraft.me.v1';
@@ -92,12 +92,13 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // ===========================================================================
 function teamLabel(team) { return team ? `${flag(team)} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
 
-function pickRow(p, { hideLock, newlyLocked } = {}) {
+function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
   const aliveCls = p.alive ? ' alive' : '';
   const mineCls = p.member.id === meId ? ' mine' : '';
   const bandCls = ` band-${p.band.toLowerCase()}`; // colours the rung on the ladder
   const pulse = !hideLock && newlyLocked && newlyLocked.has(p.member.id) ? ' just-locked' : '';
+  const movedCls = moved && moved.has(p.member.id) ? ' order-moved' : ''; // what-if: this plate just re-sorted
   // Tiebreak number is public (a trust feature) — show it wherever a team is drawn.
   const tb = p.tiebreakNumber != null ? `<span class="tb" title="tiebreak number (lower = better)">#${p.tiebreakNumber}</span>` : '';
   const bandTag = `<span class="band-tag${p.band === 'CHAMPION' ? ' gold' : ''}">${BAND_LABEL[p.band]}</span>`;
@@ -108,7 +109,7 @@ function pickRow(p, { hideLock, newlyLocked } = {}) {
     : p.alive ? '<span class="badge-alive">Alive</span>'
     : '<span class="badge-prov">If it stands</span>';
   return `
-    <div class="pick${top1}${aliveCls}${mineCls}${pulse}${bandCls}">
+    <div class="pick${top1}${aliveCls}${mineCls}${pulse}${movedCls}${bandCls}">
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
         <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
@@ -528,49 +529,59 @@ function matchInsight(state, preds, m) {
   if (!owners.length) return '';
   const orderA = orderFor(state, { ...preds, [m.id]: { winner: m.teamA } });
   const orderB = orderFor(state, { ...preds, [m.id]: { winner: m.teamB } });
-  const fa = esc(tm.get(m.teamA)?.flagEmoji ?? '');
-  const fb = esc(tm.get(m.teamB)?.flagEmoji ?? '');
+  // The flag IS the content here ("pick 7 if <flag>"), so it carries the name as alt.
+  const fa = flag(tm.get(m.teamA), tm.get(m.teamA)?.name ?? '');
+  const fb = flag(tm.get(m.teamB), tm.get(m.teamB)?.name ?? '');
   return owners.map((o) => `<div class="insight">${esc(o.name)}: pick ${pickOf(orderA, o.id) ?? '–'} if ${fa}, pick ${pickOf(orderB, o.id) ?? '–'} if ${fb}</div>`).join('');
 }
 
+// One coupon fixture: two cells split by a dashed rule; picking a team stamps
+// a ✕ in its marking box (pools-coupon style) and takes the gold wash.
 function explorerMatchCard(m, state, preds) {
   const tm = teamMap(state);
   const mbt = memberByTeam(state);
   const chosen = preds[m.id]?.winner;
-  const btn = (teamId) => {
+  const cell = (teamId) => {
     const t = tm.get(teamId);
     const owner = mbt.get(teamId);
-    return `<button class="pred-btn${chosen === teamId ? ' on' : ''}" data-act="predict" data-match="${esc(m.id)}" data-team="${esc(teamId)}">
-      ${teamLabel(t)}${owner ? `<span class="ml-owner"> ${esc(owner.name)}</span>` : ''}</button>`;
+    const on = chosen === teamId;
+    return `<button class="c-cell${on ? ' on' : ''}" data-act="predict" data-match="${esc(m.id)}" data-team="${esc(teamId)}" aria-pressed="${on}">
+      ${flag(t)}<span class="c-name">${esc(t?.name ?? '')}${owner ? `<span class="c-owner">${esc(owner.name)}</span>` : ''}</span>
+      <span class="markbox" aria-hidden="true"></span></button>`;
   };
   return `<div class="pred-card">
     <div class="ml-head">${ROUND_LABEL[m.round]} · #${esc(m.id)}</div>
-    <div class="pred-choices">${btn(m.teamA)}${btn(m.teamB)}</div>
+    <div class="coupon-row">${cell(m.teamA)}${cell(m.teamB)}</div>
     ${matchInsight(state, preds, m)}
   </div>`;
 }
 
-function renderWhatIf(state) {
+// moved: member ids whose pick number just changed — their plates pulse once.
+function renderWhatIf(state, moved) {
   const eff = effectiveMatches(state, predictions);
   const picks = computeDraftOrder({ ...state, matches: eff, includeProvisional: false }).picks;
   // Editable matches: teams known, not a real final. (Predicted ones show as final in eff.)
+  // Marking a whole round opens the next one, so the coupon grows as you fill it.
   const editable = eff.filter((m) => m.teamA && m.teamB && !(state.matches.find((o) => o.id === m.id).status === 'final'));
-  const remaining = state.matches.filter((m) => m.status !== 'final').length;
-  const predicted = Object.keys(predictions).length;
+  const marked = editable.filter((m) => predictions[m.id]).length;
+  const punches = editable.map((m) => `<span class="punch${predictions[m.id] ? ' hit' : ''}"></span>`).join('');
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
-    <div class="mode-banner"><span><strong>What-if explorer.</strong>
-      Tap who you think advances — the order updates below. Nothing here is saved or shared.
-      You pick winners, not scores, so if two teams go out in the same round their tiebreak number decides who picks first.</span></div>
-    <div class="admin-actions">
-      <span class="hint">Predicted ${predicted} of ${remaining} remaining matches.</span>
-      <button data-act="reset-preds" class="btn-secondary">Reset predictions</button>
-    </div>
+    ${editable.length ? `<div class="coupon">
+      <div class="coupon-head">
+        <span class="coupon-no">Coupon</span>
+        <span class="punches" aria-hidden="true">${punches}</span>
+        <button data-act="reset-preds" class="btn-secondary">Clear coupon</button>
+      </div>
+      <p class="coupon-note"><strong>Marked ${marked} of ${editable.length}.</strong>
+        Tap who you think advances — the order updates below. Nothing here is saved or shared.
+        You pick winners, not scores, so if two teams go out in the same round their tiebreak number decides who picks first.</p>
+    </div>` : ''}
     ${editable.length ? `<div class="pred-list">${editable.map((m) => explorerMatchCard(m, state, predictions)).join('')}</div>`
       : `<div class="empty">Every match is final — there's nothing left to imagine.</div>`}
     <h2 class="section-title">Projected order in this scenario</h2>
-    ${picks.length ? `<div class="picks">${picks.map((p) => pickRow(p, { hideLock: true })).join('')}</div>`
+    ${picks.length ? `<div class="picks">${picks.map((p) => pickRow(p, { hideLock: true, moved })).join('')}</div>`
       : `<div class="empty">Assign the draw in admin to explore scenarios.</div>`}`;
 }
 
@@ -698,10 +709,14 @@ document.addEventListener('click', (e) => {
   else if (act === 'predict') {
     const { match, team } = btn.dataset;
     // click the chosen winner again to un-predict
+    const before = orderFor(appState, predictions);
     predictions = { ...predictions };
     if (predictions[match]?.winner === team) delete predictions[match];
     else predictions[match] = { winner: team };
-    renderWhatIf(appState);
+    // pulse the plates whose pick number this tap changed (two extra engine runs — cheap, it's pure)
+    const after = orderFor(appState, predictions);
+    const moved = new Set(after.filter((p) => pickOf(before, p.member.id) !== p.pickNumber).map((p) => p.member.id));
+    renderWhatIf(appState, moved);
   }
   else if (act === 'reset-preds') { predictions = {}; renderWhatIf(appState); }
   else if (act === 'copy-update') {

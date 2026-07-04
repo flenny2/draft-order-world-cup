@@ -303,15 +303,39 @@ a:hover { text-decoration: underline; }
 .match-line.tbd { background: transparent; border: 1px dashed var(--ground-line); border-left: 4px dashed var(--rail); box-shadow: none; }
 .match-line.tbd, .match-line.tbd .ml-head, .match-line.tbd .ml-team, .match-line.tbd .ml-team .tbd { color: var(--ground-mut); }
 
-/* --- what-if --- */
+/* --- what-if: the pools coupon ------------------------------------------
+   Reference: British football pools coupons — a grid of fixtures you marked
+   with a cross. The slip up top tracks progress (punch dots); each pick
+   stamps a ✕ in the cell's marking box and takes the gold wash (on the
+   cream day plates a fill reads where an edge won't). */
+.coupon { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+.coupon-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.coupon-no { font-family: var(--font-mono); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.punches { display: flex; flex-wrap: wrap; gap: 5px; margin-right: auto; }
+.punch { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--mut); }
+.punch.hit { border-color: var(--gold-ink); background: radial-gradient(circle, var(--card) 0 2.5px, var(--gold) 2.5px); }
+.coupon-note { margin: 6px 0 0; font-size: 0.78rem; color: var(--mut); }
+.coupon-note strong { color: var(--ink); }
+
 .pred-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .pred-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
-.pred-choices { display: flex; gap: 8px; margin: 4px 0; }
-.pred-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; background: var(--card-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-family: var(--font-body); }
-.pred-btn .flag { width: 1.3em; height: 1.3em; }
-.pred-btn.on { border-color: var(--gold); background: var(--gold-tint); font-weight: 600; }
-.pred-btn .ml-owner { color: var(--mut); font-size: 0.72rem; }
-.insight { font-family: var(--font-mono); font-size: 0.74rem; color: var(--mut); padding: 1px 2px; }
+.coupon-row { display: grid; grid-template-columns: 1fr 1fr; margin-top: 2px; position: relative; }
+.coupon-row::after { content: ""; position: absolute; left: 50%; top: 6%; bottom: 6%; border-left: 1px dashed var(--line); }
+.c-cell { display: flex; align-items: center; gap: 7px; text-align: left; padding: 9px 8px; min-width: 0; background: transparent; border: 0; border-radius: var(--radius-sm); color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); cursor: pointer; }
+.c-cell:active { transform: scale(0.985); }
+.c-cell .flag { width: 1.35em; height: 1.35em; }
+.c-name { min-width: 0; }
+.c-owner { display: block; line-height: 1.2; color: var(--mut); font-size: 0.72rem; font-weight: 400; }
+.markbox { width: 17px; height: 17px; flex: none; margin-left: auto; border: 1.5px solid var(--mut); border-radius: 2px; position: relative; }
+.c-cell.on { background: color-mix(in srgb, var(--gold) 16%, var(--card)); font-weight: 700; }
+.c-cell.on .markbox { border-color: var(--ink); }
+.c-cell.on .markbox::after { content: "✕"; position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 19px; line-height: 1; color: var(--ink); transform: rotate(-7deg) translateY(-1px); animation: stamp 0.16s ease-out; }
+@keyframes stamp { from { transform: rotate(-16deg) scale(1.7); opacity: 0.3; } to { transform: rotate(-7deg) translateY(-1px) scale(1); opacity: 1; } }
+.insight { font-family: var(--font-mono); font-size: 0.74rem; color: var(--mut); padding: 1px 2px; margin-top: 5px; }
+.insight .flag { width: 1.25em; height: 1.25em; }
+/* a tap that changes the projected order pulses the plates that re-sorted */
+.pick.order-moved { animation: movepulse 0.7s ease-out; }
+@keyframes movepulse { 0% { box-shadow: 0 0 0 0 var(--gold); } 40% { box-shadow: 0 0 14px -2px var(--gold); } 100% { box-shadow: 0 5px 14px -10px rgb(0 0 0 / 0.55); } }
 
 /* --- help --- */
 .prose { font-size: 0.92rem; line-height: 1.6; margin: 8px 0; color: var(--ground-ink); }
