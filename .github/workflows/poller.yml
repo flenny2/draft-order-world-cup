@@ -1,0 +1,58 @@
+# Live-scores poller — fetches World Cup scores from football-data.org and
+# PATCHes the RTDB. Design + rollout phases: AUTOMATION.md.
+#
+# PHASE A: every run is a DRY RUN (logs intended writes, touches nothing).
+# To go live (Phase C): change the DRY_RUN expression below per its comment,
+# and set /automation/enabled = true in the DB (the second, admin-owned gate).
+name: Live scores poller
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (log writes without writing)'
+        type: boolean
+        default: true
+      max_minutes:
+        description: 'Live-loop cap in minutes'
+        default: '240'
+  schedule:
+    # 5 min before each remaining kickoff (UTC; cron often fires late — the
+    # loop catches up). Sources: data.js kickoff times.
+    - cron: '55 19 9 7 *'   # QF-97  Jul 9  20:00 UTC (Foxborough)
+    - cron: '55 18 10 7 *'  # QF-98  Jul 10 19:00 UTC (Inglewood)
+    - cron: '55 20 11 7 *'  # QF-99  Jul 11 21:00 UTC (Miami Gardens)
+    - cron: '55 0 12 7 *'   # QF-100 Jul 12 01:00 UTC (Kansas City, Jul 11 local)
+    - cron: '55 18 14 7 *'  # SF-101 Jul 14 19:00 UTC (Arlington)
+    - cron: '55 18 15 7 *'  # SF-102 Jul 15 19:00 UTC (Atlanta)
+    - cron: '55 20 18 7 *'  # 3rd    Jul 18 21:00 UTC (Miami Gardens)
+    - cron: '55 18 19 7 *'  # Final  Jul 19 19:00 UTC (East Rutherford)
+    # Daily sweeps (July only) — catch anything a live loop missed.
+    - cron: '0 9,15 * 7 *'
+
+# Never two pollers at once; a queued run that finds nothing live exits fast.
+concurrency:
+  group: poller
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300 # hard cap above the script's own MAX_MINUTES
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Poll scores
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+          POLLER_EMAIL: ${{ secrets.POLLER_EMAIL }}
+          POLLER_PASSWORD: ${{ secrets.POLLER_PASSWORD }}
+          # PHASE A: scheduled runs are ALWAYS dry; only a manual dispatch with
+          # dry_run unchecked can write (and the DB kill switch still gates it).
+          # PHASE C (go live): change the condition to
+          #   ${{ github.event_name == 'schedule' || inputs.dry_run == false }}
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) && '0' || '1' }}
+          MAX_MINUTES: ${{ inputs.max_minutes || '240' }}
+        run: node scripts/poller.mjs

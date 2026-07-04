@@ -18,3 +18,5 @@ jobs:
         run: node engine.test.js
       - name: Simulation (fairness + process fuzz)
         run: node simulate.js
+      - name: Poller planning functions
+        run: node poller.test.js
