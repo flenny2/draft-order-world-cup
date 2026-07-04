@@ -129,12 +129,16 @@ function orderBlock(state, mode) {
 
 // One match, shared by schedule + bracket. Bold the winner; tag whose pick each
 // team is; highlight if it's the viewer's team.
-function matchLine(m, state, { showTime } = {}) {
+// A bracket cell. crown marks the Final winner as champion; tbd renders an
+// unfilled wall-chart slot (both teams still awaiting an upstream result).
+function matchLine(m, state, { showTime, crown } = {}) {
   const tm = teamMap(state);
   const mbt = memberByTeam(state);
   const wl = matchWinnerLoser(m); // final only
   const mineSet = new Set([myTeamId(state)].filter(Boolean));
   const mineCls = (mineSet.has(m.teamA) || mineSet.has(m.teamB)) ? ' mine' : '';
+  const liveCls = m.status === 'in_progress' ? ' live' : '';
+  const tbdCls = (m.teamA == null && m.teamB == null) ? ' tbd' : '';
 
   const side = (teamId, score) => {
     const t = tm.get(teamId);
@@ -144,6 +148,7 @@ function matchLine(m, state, { showTime } = {}) {
     const scoreTxt = (m.status === 'final' || m.status === 'in_progress') && score != null ? `<span class="ml-score">${score}</span>` : '';
     return `<div class="ml-side${win ? ' win' : ''}${lose ? ' lose' : ''}${owner && owner.id === meId ? ' mine' : ''}">
       <span class="ml-team">${teamLabel(t)}${win ? ' <span class="adv">✓</span>' : ''}</span>
+      ${win && crown ? '<span class="champ-tag">Champion</span>' : ''}
       ${owner ? `<span class="ml-owner">${esc(owner.name)}</span>` : ''}
       ${scoreTxt}
     </div>`;
@@ -157,8 +162,8 @@ function matchLine(m, state, { showTime } = {}) {
   const statusBadge = m.status === 'in_progress' ? '<span class="ml-live">LIVE</span>'
     : m.status === 'final' ? '<span class="ml-final">FT</span>' : '';
 
-  return `<div class="match-line${mineCls}">
-    <div class="ml-head">${ROUND_LABEL[m.round]} · #${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''} ${statusBadge} ${pens} ${timeTxt}</div>
+  return `<div class="match-line${mineCls}${liveCls}${tbdCls}">
+    <div class="ml-head">#${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''} ${statusBadge} ${pens} ${timeTxt}</div>
     ${side(m.teamA, m.scoreA)}${side(m.teamB, m.scoreB)}
   </div>`;
 }
@@ -379,15 +384,21 @@ function renderSchedule(state) {
 // BRACKET (round by round, mobile-first)
 // ===========================================================================
 function renderBracket(state) {
-  const rounds = [['R16', 'Round of 16'], ['QF', 'Quarterfinals'], ['SF', 'Semifinals'], ['Final', 'Final'], ['3rd', '3rd-place game']];
-  const block = ([round, label]) => {
+  // [round key, chapter name, short mark]. Rails ramp deep-teal -> gold toward the Final.
+  const rounds = [['R16', 'Round of 16', 'R16'], ['QF', 'Quarterfinals', 'QF'], ['SF', 'Semifinals', 'SF'], ['Final', 'Final', 'F'], ['3rd', '3rd-place game', '3rd']];
+  const block = ([round, label, mark]) => {
     const ms = state.matches.filter((m) => m.round === round);
     if (!ms.length) return '';
-    return `<h2 class="section-title">${label}</h2>
-      <div class="match-list bracket-round">${ms.map((m) => matchLine(m, state, { showTime: false })).join('')}</div>`;
+    const decided = ms.filter((m) => matchWinnerLoser(m)).length;
+    const prog = decided === ms.length ? 'complete' : `${decided} of ${ms.length} in`;
+    const cells = ms.map((m) => matchLine(m, state, { showTime: true, crown: round === 'Final' })).join('');
+    return `<section class="bx-round r-${round}">
+      <div class="rnd-head"><span class="rnd-mark">${mark}</span><span class="rnd-name">${label}</span><span class="rnd-rule"></span><span class="rnd-prog">${prog}</span></div>
+      <div class="bracket-round">${cells}</div>
+    </section>`;
   };
   const myTid = myTeamId(state);
-  const hint = myTid ? `<p class="tz-note">Your team's matches are highlighted.</p>` : '';
+  const hint = myTid ? `<p class="tz-note">Your team's run is highlighted in gold.</p>` : '';
   view().innerHTML = `${nav()}${meBar(state)}${hint}${rounds.map(block).join('')}`;
 }
 
@@ -550,8 +561,8 @@ function renderWhatIf(state) {
   view().innerHTML = `
     ${nav()}${meBar(state)}
     <div class="mode-banner"><span><strong>What-if explorer.</strong>
-      Click who you think advances — the order updates below. Nothing here is saved or shared.
-      Imagined games count as 1–0 (so same-band ties fall to tiebreak number).</span></div>
+      Tap who you think advances — the order updates below. Nothing here is saved or shared.
+      You pick winners, not scores, so if two teams go out in the same round their tiebreak number decides who picks first.</span></div>
     <div class="admin-actions">
       <span class="hint">Predicted ${predicted} of ${remaining} remaining matches.</span>
       <button data-act="reset-preds" class="btn-secondary">Reset predictions</button>

@@ -250,10 +250,30 @@ a:hover { text-decoration: underline; }
 .tk-score { font-family: var(--font-mono); font-weight: 700; min-width: 14px; text-align: right; }
 .tk-foot { font-family: var(--font-mono); font-size: 0.64rem; color: var(--mut); margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--line); }
 
-/* --- match line (schedule + bracket) --- */
+/* --- match-list container (admin results) --- */
 .match-list { display: flex; flex-direction: column; gap: 8px; }
-.match-line { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; }
-.match-line.mine { border-color: var(--gold); }
+
+/* =======================================================================
+   BRACKET — a fill-in wall-chart. Round "chapters" carry a decided-count; cells
+   ride round-coded rails that ramp toward gold at the Final; unresolved matchups
+   render as ghosted slots waiting to be filled; the Final is a crowned foil slot.
+   ======================================================================= */
+.bx-round { margin-bottom: 4px; }
+.rnd-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
+.rnd-mark { font-family: var(--font-mono); font-weight: 700; font-size: 0.62rem; letter-spacing: 0.05em; color: #2a2410; background: var(--rail, #a6a08e); border-radius: 5px; padding: 2px 7px; }
+.rnd-name { font-family: var(--font-heading); font-weight: 700; font-size: 1rem; color: var(--ground-ink); white-space: nowrap; }
+.rnd-rule { flex: 1; height: 1px; background: var(--ground-line); }
+.rnd-prog { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ground-mut); white-space: nowrap; }
+.bracket-round { display: flex; flex-direction: column; gap: 8px; }
+
+/* round rails ramp toward the trophy: stone -> gold, bronze for the 3rd-place game */
+.r-R16 { --rail: #a6a08e; }
+.r-QF { --rail: #c6ab63; }
+.r-SF { --rail: #d3a63c; }
+.r-Final { --rail: var(--gold); }
+.r-3rd { --rail: #b3763f; }
+
+.match-line { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--rail, #a6a08e); border-radius: var(--radius); padding: 9px 12px; }
 .ml-head { font-family: var(--font-mono); font-size: 0.66rem; color: var(--mut); margin-bottom: 5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ml-side { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .ml-side.win .ml-team { font-weight: 700; }
@@ -270,7 +290,18 @@ a:hover { text-decoration: underline; }
 .ml-final { color: var(--mut); font-family: var(--font-mono); font-size: 0.7rem; }
 .ml-pens { color: var(--gold-ink); }
 .ml-time { margin-left: auto; font-family: var(--font-mono); }
-.bracket-round .match-line { border-left: 3px solid var(--gold); }
+
+/* live = coral rail; your run = gold rail (wins over the round colour) */
+.match-line.live { border-color: var(--coral); }
+.match-line.mine { border-color: var(--gold); }
+
+/* the Final: a foil slot; the winner earns a Champion tag */
+.r-Final .match-line { background: var(--gold-tint); border-color: var(--gold); }
+.champ-tag { font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.06em; color: #2a2410; background: linear-gradient(135deg, #efd98a, #c6a24c); border-radius: 4px; padding: 2px 7px; }
+
+/* an unresolved matchup = a blank wall-chart slot on the ground */
+.match-line.tbd { background: transparent; border: 1px dashed var(--ground-line); border-left: 4px dashed var(--rail); box-shadow: none; }
+.match-line.tbd, .match-line.tbd .ml-head, .match-line.tbd .ml-team, .match-line.tbd .ml-team .tbd { color: var(--ground-mut); }
 
 /* --- what-if --- */
 .pred-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
