@@ -419,6 +419,22 @@ function assignmentRow(member, teams) {
     <select data-act="assign" data-field="tiebreak" title="tiebreak number (1=best)" aria-label="${esc(member.name)} — tiebreak number">${tbOpts}</select>
   </div>`;
 }
+// datetime-local <-> ISO-with-offset. The admin edits kickoffs in the DEVICE's
+// zone (native picker); we store the instant with the device's UTC offset, which
+// preserves it exactly — every page renders times in the viewer's zone anyway.
+function toLocalInput(ms) {
+  if (ms == null) return '';
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function isoWithDeviceOffset(local) { // "YYYY-MM-DDTHH:MM" (device zone) -> full ISO
+  const d = new Date(local); // no-offset datetimes parse as device-local time
+  if (Number.isNaN(d.getTime())) return null;
+  const off = -d.getTimezoneOffset(); // minutes east of UTC, DST-correct for that date
+  const p = (n) => String(n).padStart(2, '0');
+  return `${local}:00${off >= 0 ? '+' : '-'}${p(Math.floor(Math.abs(off) / 60))}:${p(Math.abs(off) % 60)}`;
+}
 function matchCard(m, teams) {
   const isR16 = m.round === 'R16';
   const nameOf = (id) => { const t = teams.find((x) => x.id === id); return t ? `${t.flagEmoji} ${t.name}` : '— TBD —'; };
@@ -428,8 +444,11 @@ function matchCard(m, teams) {
        <select data-act="match" data-field="teamB">${teamOptions(teams, m.teamB)}</select>`
     : `<span class="auto-team">${esc(nameOf(m.teamA))}</span><span class="vs">v</span><span class="auto-team">${esc(nameOf(m.teamB))}</span>`;
   const opt = (v, label, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`;
-  return `<div class="match-card" data-match-card="${esc(m.id)}">
-    <div class="match-head"><strong>${ROUND_LABEL[m.round]}</strong> · #${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''}</div>
+  const k = kickoffMs(m);
+  const when = k != null ? new Date(k).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  const statusCls = m.status === 'in_progress' ? ' live' : m.status === 'final' ? ' final' : '';
+  return `<div class="match-card${statusCls}" data-match-card="${esc(m.id)}">
+    <div class="match-head"><strong>${ROUND_LABEL[m.round]}</strong> · #${esc(m.id)}${m.venue ? ' · ' + esc(m.venue) : ''}${when ? `<span class="match-when">${esc(when)}</span>` : ''}</div>
     <div class="match-teams">${teamCell}</div>
     <div class="match-result">
       <input type="number" min="0" data-act="match" data-field="scoreA" value="${m.scoreA ?? ''}" placeholder="–" aria-label="Score — ${esc(nameOf(m.teamA))}" />
@@ -445,6 +464,14 @@ function matchCard(m, teams) {
         <option value="${esc(m.teamA ?? '')}" ${m.penWinner === m.teamA ? 'selected' : ''}>${esc(nameOf(m.teamA))}</option>
         <option value="${esc(m.teamB ?? '')}" ${m.penWinner === m.teamB ? 'selected' : ''}>${esc(nameOf(m.teamB))}</option>
       </select>` : ''}
+    <details class="fixture-edit">
+      <summary>Kickoff &amp; venue</summary>
+      <div class="fx-fields">
+        <input type="datetime-local" data-act="match" data-field="datetime" value="${toLocalInput(k)}" aria-label="Kickoff — your local time" />
+        <input type="text" data-act="match" data-field="venue" value="${esc(m.venue ?? '')}" placeholder="venue" maxlength="40" aria-label="Venue" />
+      </div>
+      <p class="fx-hint">Kickoff is in your local time — leaguemates each see it in theirs.</p>
+    </details>
   </div>`;
 }
 // Save toast: fixed to the bottom so it's visible wherever the admin is
@@ -473,6 +500,10 @@ function renderAdmin(state) {
       </form>`;
     return;
   }
+  // Every save re-renders this view; keep any open fixture editors open so a
+  // kickoff edit doesn't collapse the panel before the venue edit.
+  const openFx = new Set([...document.querySelectorAll('.fixture-edit[open]')]
+    .map((d) => d.closest('[data-match-card]')?.dataset.matchCard).filter(Boolean));
   view().innerHTML = `
     ${nav()}
     ${saveStatus()}
@@ -496,6 +527,7 @@ function renderAdmin(state) {
     </div>
     <h2 class="section-title">Live preview (what the public sees)</h2>
     ${orderBlock(state, 'projected')}`;
+  for (const id of openFx) document.querySelector(`[data-match-card="${id}"] .fixture-edit`)?.setAttribute('open', '');
 }
 
 // ===========================================================================
@@ -706,6 +738,11 @@ function readMatch(matchId) {
   };
   if (get('teamA')) patch.teamA = get('teamA').value || null;
   if (get('teamB')) patch.teamB = get('teamB').value || null;
+  // Fixture fields: an empty/invalid datetime is OMITTED (never wipes a stored
+  // kickoff by accident); venue may be cleared to null (display-only).
+  const iso = get('datetime')?.value ? isoWithDeviceOffset(get('datetime').value) : null;
+  if (iso) patch.datetimeISO = iso;
+  if (get('venue')) patch.venue = get('venue').value.trim() || null;
   store.setMatch(matchId, patch);
 }
 

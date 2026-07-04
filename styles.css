@@ -395,7 +395,22 @@ button.btn-danger { color: var(--coral-ink); border-color: color-mix(in srgb, va
 .assign-row { display: grid; grid-template-columns: 90px 1fr 64px; gap: 8px; align-items: center; color: var(--ground-ink); }
 .assign-name { font-weight: 600; font-size: 0.9rem; }
 .match-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-.match-head { font-family: var(--font-mono); font-size: 0.76rem; color: var(--mut); }
+/* status rail — find the live/finished cards at a glance on matchday */
+.match-card.live { border-left: 3px solid var(--coral); }
+.match-card.final { border-left: 3px solid var(--green); }
+.match-head { font-family: var(--font-mono); font-size: 0.76rem; color: var(--mut); display: flex; align-items: baseline; flex-wrap: wrap; }
+.match-when { margin-left: auto; padding-left: 8px; }
+/* the collapsed fixture editor (kickoff + venue) at the foot of each card */
+.fixture-edit { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 2px; }
+.fixture-edit summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); }
+.fixture-edit summary:hover { color: var(--ink); }
+.fixture-edit[open] summary { color: var(--gold-ink); }
+.fx-fields { display: flex; gap: 8px; margin: 8px 0 4px; flex-wrap: wrap; }
+.fx-fields input[type="datetime-local"] { flex: 1 1 180px; }
+.fx-fields input[type="text"] { flex: 1 1 120px; }
+.fx-hint { margin: 0; font-size: 0.72rem; color: var(--mut); }
+/* 16px+ controls stop iOS zooming the page on focus (results are entered on a phone) */
+.match-card input, .match-card select, .assign-row select { font-size: 1rem; }
 .match-teams { display: flex; align-items: center; gap: 8px; }
 .match-teams .vs { color: var(--mut); font-size: 0.8rem; }
 .match-teams select { flex: 1; }
@@ -410,7 +425,7 @@ button.btn-danger { color: var(--coral-ink); border-color: color-mix(in srgb, va
 .signin h2 { color: var(--ground-ink); }
 .signin button { padding: 10px; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); font-weight: 700; cursor: pointer; font-family: var(--font-body); }
 .signin-err { color: var(--coral); font-size: 0.82rem; min-height: 1em; }
-select, input[type="number"], input[type="email"], input[type="password"] { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 8px; font-size: 0.88rem; min-width: 0; font-family: var(--font-body); }
+select, input[type="number"], input[type="email"], input[type="password"], input[type="text"], input[type="datetime-local"] { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 8px; font-size: 0.88rem; min-width: 0; font-family: var(--font-body); }
 
 /* --- celebration --- */
 .confetti-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9999; }

@@ -51,10 +51,11 @@ the admin account). CI runs the harness and the simulator on every push.
 
 ## Draw-night runbook (do these in order)
 
-Team names, venues, and kickoff times live only in `data.js` — the admin UI
-edits assignments, scores, and status, not fixtures. "Reset to blank seed"
-seeds the live database from `data.js`, so the seed must be correct **before**
-the reset; a later reset wipes everything entered.
+Team names live only in `data.js`; kickoff times and venues are editable in
+the admin UI too (each match card's "Kickoff & venue" panel — times entered in
+your device's local zone). "Reset to blank seed" seeds the live database from
+`data.js`, so the seed must be correct **before** the reset; a later reset
+wipes everything entered.
 
 1. **When the Round of 32 finishes:** put the real 16 teams into `data.js`
    (replace the `W77`–`W88` placeholders: id/code/name/flag, and the team ids
