@@ -199,19 +199,56 @@ a:hover { text-decoration: underline; }
 .trust { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--ground-line); }
 .stamp { font-family: var(--font-mono); font-size: 0.7rem; color: var(--mut); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
 
-/* --- featured next match — the matchday ticket --- */
-.featured { position: relative; overflow: hidden; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; text-align: center; margin-bottom: 6px; }
-.featured.live { border-color: var(--coral); }
-.featured.done { color: var(--gold-ink); font-weight: 700; font-family: var(--font-heading); }
-.featured-tag { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--mut); }
-.featured.live .featured-tag { color: var(--coral); }
-.featured-teams { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin: 8px 0; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
-.featured-teams .flag { width: 1.4em; height: 1.4em; }
-.featured-teams .vs { color: var(--mut); font-weight: 400; font-size: 0.85rem; }
-.featured-count, .featured-score { font-family: var(--font-mono); font-size: 2.1rem; font-weight: 700; color: var(--gold-ink); }
-.featured.live .featured-score { color: var(--coral); }
-.featured-sub { font-size: 0.8rem; color: var(--mut); margin-top: 4px; }
+/* =======================================================================
+   SCHEDULE — the matchday ticket rail. A "hot ticket" marquee (live score or
+   next-kickoff countdown), then fixtures as torn ticket stubs under day bands.
+   ======================================================================= */
+.marquee { position: relative; overflow: hidden; background: var(--card); color: var(--ink); border: 1px solid var(--gold); border-radius: var(--radius); padding: 16px 16px 18px; text-align: center; margin-bottom: 14px; box-shadow: 0 6px 20px -12px rgb(0 0 0 / 0.5); }
+.marquee.live { border-color: var(--coral); }
+.marquee.done { border-color: var(--line); color: var(--gold-ink); font-weight: 700; font-family: var(--font-heading); padding: 20px; }
+.mq-tag { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gold-ink); display: inline-flex; align-items: center; gap: 6px; }
+.marquee.live .mq-tag { color: var(--coral); }
+.mq-teams { font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; margin: 8px 0; display: flex; align-items: center; justify-content: center; gap: 8px 10px; flex-wrap: wrap; }
+.mq-teams .flag { width: 1.4em; height: 1.4em; }
+.mq-v { color: var(--mut); font-weight: 400; font-size: 0.82rem; }
+.mq-score { font-family: var(--font-mono); font-weight: 700; font-size: 1.6rem; color: var(--coral); }
+.mq-count { font-family: var(--font-mono); font-weight: 700; font-size: 2.1rem; color: var(--gold-ink); letter-spacing: 0.02em; }
+.mq-sub { font-size: 0.8rem; color: var(--mut); margin-top: 5px; }
+.livedot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+@media (prefers-reduced-motion: no-preference) { .livedot { animation: livepulse 1.4s infinite; } }
+@keyframes livepulse { 50% { opacity: 0.3; } }
+
 .tz-note { text-align: center; color: var(--ground-mut); font-size: 0.74rem; margin: 6px 0 14px; }
+
+/* matchday band — a dated divider with the game count */
+.day-band { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
+.db-day { font-family: var(--font-heading); font-weight: 700; font-size: 1rem; color: var(--ground-ink); white-space: nowrap; }
+.db-rule { flex: 1; height: 1px; background: var(--ground-line); }
+.db-count { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ground-mut); white-space: nowrap; }
+
+/* the ticket: stub (time / LIVE / FT) + torn perforation + the two teams */
+.ticket-list { display: flex; flex-direction: column; gap: 9px; }
+.ticket { position: relative; display: grid; grid-template-columns: 74px 1fr; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 5px 14px -10px rgb(0 0 0 / 0.5); }
+.ticket.mine { border-color: var(--gold); }
+.ticket.live { border-color: var(--coral); }
+.tk-stub { display: grid; place-items: center; padding: 10px 6px; background: var(--card-2); border-radius: var(--radius) 0 0 var(--radius); text-align: center; }
+.tk-body { padding: 9px 12px; border-left: 2px dashed var(--line); min-width: 0; }
+/* punched notches at the tear line (ground-coloured discs over the top/bottom edges) */
+.ticket::before, .ticket::after { content: ""; position: absolute; left: 68px; width: 12px; height: 12px; border-radius: 50%; background: var(--ground); }
+.ticket::before { top: -6px; } .ticket::after { bottom: -6px; }
+.tk-time { font-family: var(--font-mono); font-weight: 700; font-size: 1.2rem; color: var(--ink); line-height: 1; }
+.tk-ampm { display: block; font-family: var(--font-mono); font-size: 0.58rem; color: var(--mut); letter-spacing: 0.06em; margin-top: 3px; }
+.tk-live { font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; color: var(--coral); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 5px; }
+.tk-ft { font-family: var(--font-mono); font-size: 0.8rem; color: var(--mut); }
+.tk-side { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+.tk-side.win .tk-team { font-weight: 700; }
+.tk-side.lose { opacity: 0.5; }
+.tk-team { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tk-team .flag { width: 1.3em; height: 1.3em; }
+.tk-owner { font-size: 0.72rem; color: var(--mut); }
+.tk-side.mine .tk-owner { color: var(--green-ink); font-weight: 600; }
+.tk-score { font-family: var(--font-mono); font-weight: 700; min-width: 14px; text-align: right; }
+.tk-foot { font-family: var(--font-mono); font-size: 0.64rem; color: var(--mut); margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--line); }
 
 /* --- match line (schedule + bracket) --- */
 .match-list { display: flex; flex-direction: column; gap: 8px; }
@@ -229,7 +266,7 @@ a:hover { text-decoration: underline; }
 .ml-score { font-family: var(--font-mono); font-weight: 700; min-width: 16px; text-align: right; }
 .adv { color: var(--green); }
 .ml-live { color: var(--coral); font-weight: 700; font-family: var(--font-mono); font-size: 0.7rem; }
-.ml-live::before, .featured-tag.is-live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); margin-right: 5px; vertical-align: middle; }
+.ml-live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); margin-right: 5px; vertical-align: middle; }
 .ml-final { color: var(--mut); font-family: var(--font-mono); font-size: 0.7rem; }
 .ml-pens { color: var(--gold-ink); }
 .ml-time { margin-left: auto; font-family: var(--font-mono); }

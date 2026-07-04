@@ -296,42 +296,82 @@ function renderOrder(state) {
 // ===========================================================================
 // SCHEDULE + countdown
 // ===========================================================================
+// The "hot ticket" marquee: the live match (score) or the next kickoff (countdown).
 function featuredNext(state) {
-  const now = Date.now();
-  const next = nextMatch(state.matches, now);
-  if (!next) return `<div class="featured done">Tournament complete — the order is final.</div>`;
+  const next = nextMatch(state.matches, Date.now());
+  if (!next) return `<div class="marquee done">Tournament complete — the order is final.</div>`;
 
   const tm = teamMap(state);
-  const teams = `${teamLabel(tm.get(next.teamA))} <span class="vs">v</span> ${teamLabel(tm.get(next.teamB))}`;
+  const teams = `${teamLabel(tm.get(next.teamA))} <span class="mq-v">v</span> ${teamLabel(tm.get(next.teamB))}`;
   const k = kickoffMs(next);
   if (next.status === 'in_progress') {
-    return `<div class="featured live">
-      <div class="featured-tag is-live">LIVE NOW</div>
-      <div class="featured-teams">${teams}</div>
-      <div class="featured-score">${next.scoreA ?? 0} – ${next.scoreB ?? 0}</div>
-      <div class="featured-sub">${ROUND_LABEL[next.round]}${next.venue ? ' · ' + esc(next.venue) : ''}</div>
+    return `<div class="marquee live">
+      <div class="mq-tag"><span class="livedot"></span> Live now · ${ROUND_LABEL[next.round]}</div>
+      <div class="mq-teams">${teams}</div>
+      <div class="mq-score">${next.scoreA ?? 0} – ${next.scoreB ?? 0}</div>
+      <div class="mq-sub">${next.venue ? esc(next.venue) + ' · ' : ''}picks shift live as it plays</div>
     </div>`;
   }
-  return `<div class="featured">
-    <div class="featured-tag">Next up</div>
-    <div class="featured-teams">${teams}</div>
-    <div class="featured-count" ${k != null ? `data-countdown="${k}"` : ''}>${k != null ? '…' : 'time TBD'}</div>
-    <div class="featured-sub">${ROUND_LABEL[next.round]}${next.venue ? ' · ' + esc(next.venue) : ''}${k != null ? ' · ' + new Date(k).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</div>
+  const when = k != null ? ' · ' + new Date(k).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  return `<div class="marquee">
+    <div class="mq-tag">Next up · ${ROUND_LABEL[next.round]}</div>
+    <div class="mq-teams">${teams}</div>
+    <div class="mq-count" ${k != null ? `data-countdown="${k}"` : ''}>${k != null ? '…' : 'time TBD'}</div>
+    <div class="mq-sub">${next.venue ? esc(next.venue) : ''}${when}</div>
   </div>`;
+}
+
+// One fixture as a matchday ticket: a torn stub (kickoff time / LIVE / FT) + the
+// two teams. Schedule-only — the bracket keeps matchLine(), so it's unaffected.
+function scheduleTicket(m, state) {
+  const tm = teamMap(state);
+  const mbt = memberByTeam(state);
+  const wl = matchWinnerLoser(m); // final only
+  const mineTeam = myTeamId(state);
+  const mineCls = (mineTeam === m.teamA || mineTeam === m.teamB) ? ' mine' : '';
+
+  let stub;
+  const k = kickoffMs(m);
+  if (m.status === 'in_progress') stub = `<div class="tk-live"><span class="livedot"></span>Live</div>`;
+  else if (m.status === 'final') stub = `<div class="tk-ft">FT</div>`;
+  else if (k != null) {
+    const [hm, ap] = new Date(k).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).split(' ');
+    stub = `<div class="tk-time">${esc(hm)}${ap ? `<span class="tk-ampm">${esc(ap)}</span>` : ''}</div>`;
+  } else stub = `<div class="tk-ft">TBD</div>`;
+
+  const side = (id, sc) => {
+    const t = tm.get(id);
+    const owner = mbt.get(id);
+    const win = wl && wl.winner === id;
+    const lose = wl && wl.loser === id;
+    const scoreTxt = (m.status === 'final' || m.status === 'in_progress') && sc != null ? `<span class="tk-score">${sc}</span>` : '';
+    return `<div class="tk-side${win ? ' win' : ''}${lose ? ' lose' : ''}${owner && owner.id === meId ? ' mine' : ''}">
+      <span class="tk-team">${teamLabel(t)}${win ? ' <span class="adv">✓</span>' : ''}</span>
+      ${owner ? `<span class="tk-owner">${esc(owner.name)}</span>` : ''}${scoreTxt}</div>`;
+  };
+  const pens = m.decidedByPens && m.status === 'final' ? ` · <span class="ml-pens">pens: ${esc(tm.get(m.penWinner)?.name ?? '?')}</span>` : '';
+  return `<article class="ticket${m.status === 'in_progress' ? ' live' : ''}${mineCls}">
+    <div class="tk-stub">${stub}</div>
+    <div class="tk-body">
+      ${side(m.teamA, m.scoreA)}${side(m.teamB, m.scoreB)}
+      <div class="tk-foot">${ROUND_LABEL[m.round]} · ${esc(m.venue ?? '—')} · #${esc(m.id)}${pens}</div>
+    </div>
+  </article>`;
 }
 
 function renderSchedule(state) {
   const { groups, undated } = groupByDay(state.matches);
+  const band = (label, n) => `<div class="day-band"><span class="db-day">${label}</span><span class="db-rule"></span><span class="db-count">${n} ${n === 1 ? 'match' : 'matches'}</span></div>`;
   const dayBlock = (g) => `
-    <h2 class="section-title">${g.day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
-    <div class="match-list">${g.items.map((m) => matchLine(m, state, { showTime: true })).join('')}</div>`;
+    ${band(esc(g.day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })), g.items.length)}
+    <div class="ticket-list">${g.items.map((m) => scheduleTicket(m, state)).join('')}</div>`;
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
     ${featuredNext(state)}
     <p class="tz-note">Kickoff times shown in your local timezone.</p>
     ${groups.map(dayBlock).join('')}
-    ${undated.length ? `<h2 class="section-title">Times TBD</h2><div class="match-list">${undated.map((m) => matchLine(m, state, { showTime: false })).join('')}</div>` : ''}`;
+    ${undated.length ? `${band('Times TBD', undated.length)}<div class="ticket-list">${undated.map((m) => scheduleTicket(m, state)).join('')}</div>` : ''}`;
   startTick();
 }
 
