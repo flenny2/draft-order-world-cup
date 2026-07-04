@@ -166,3 +166,38 @@ credential, only the football-data key.
   flip `dry_run` default. First live matchday watched together.
 - **v1.5:** goalscorers → `/box`, ticket-expansion UI (frontend-design skill,
   Collectible system). **v2:** cards/stats source decision.
+
+---
+
+## 8. Phase B checklist (Dylan solo, Firebase console — done by evening Jul 8)
+
+1. **Back up the current rules.** Console → Realtime Database → Rules tab →
+   copy ALL the text into a local file outside the repo (e.g.
+   `~/Documents/rtdb-rules-backup.txt`). This is the undo for step 4.
+2. **Create the poller user.** Console → Authentication → Users → Add user.
+   Any email-formatted address you control works (it never receives mail);
+   password = 24+ random characters from your password manager. Never in chat,
+   never in a file in the repo.
+3. **Copy both UIDs** from the same Users table: the existing admin account's
+   and the new poller user's.
+4. **Apply the rules** from §1 above, replacing `<ADMIN_UID>` and
+   `<POLLER_UID>`, then Publish. Immediately sanity-check: load the app,
+   sign in, edit something trivial (e.g. a venue) and confirm it saves.
+5. **Add the two secrets** (hidden prompt, same as the API key):
+   `gh secret set POLLER_EMAIL` then `gh secret set POLLER_PASSWORD`.
+6. **Create the kill switch.** Console → Realtime Database → Data → add child
+   `automation` with child `enabled` = `false` (boolean).
+7. **Auth test on Jul 8** (the tournament's only blank day). First make sure
+   all R16 results are entered and final — otherwise the poller will fill the
+   gaps for real (which is it working, but better not during a test). Then set
+   `automation/enabled` = `true` and run:
+   `gh workflow run poller.yml -f dry_run=false`
+   Expected in the run log: real `PATCH /automation/fixtureMap` and
+   `PUT /automation/lastRun` lines, zero `/state` writes, "nothing live or
+   imminent" exit. Confirm `/automation/lastRun` appeared in the Data tab.
+   That proves sign-in, token exchange, and the scoped rules all work.
+   Leave `enabled` = `true` — scheduled runs stay dry until Phase C.
+
+**Phase C (Jul 9, before 4pm ET, with Claude):** change the `DRY_RUN`
+expression in `.github/workflows/poller.yml` per its comment, push, and watch
+the first QF cron run write for real.
