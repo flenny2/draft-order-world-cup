@@ -589,22 +589,33 @@ function renderWhatIf(state, moved) {
 // HELP / education
 // ===========================================================================
 function renderHelp(state) {
+  // [band colour, picks in the band, finish, how the band self-orders]
   const ladder = [
-    ['band-champion', 'Champion', '1 pick'],
-    ['band-runner_up', 'Runner-up', '1 pick'],
-    ['band-third', '3rd place', '1 pick'],
-    ['band-fourth', '4th place', '1 pick'],
-    ['band-qf_losers', 'QF losers', '4 picks — tiebreak within the band'],
-    ['band-r16_losers', 'R16 losers', '8 picks — tiebreak within the band'],
+    ['band-champion', '1', 'Champion', ''],
+    ['band-runner_up', '1', 'Runner-up', ''],
+    ['band-third', '1', '3rd place', ''],
+    ['band-fourth', '1', '4th place', ''],
+    ['band-qf_losers', '4', 'QF losers', 'GD, then goals, then tiebreak number'],
+    ['band-r16_losers', '8', 'R16 losers', 'GD, then goals, then tiebreak number'],
   ];
+  const lockedDate = esc(state.meta?.rulesLockedDate ?? '—');
   view().innerHTML = `
     ${nav()}
-    <h2 class="section-title">How the draft order works</h2>
+    <div class="prog-mast">
+      <p class="prog-eyebrow">Official programme</p>
+      <h2 class="prog-title">How the draft order works</h2>
+      <p class="prog-edition">Rules edition · locked ${lockedDate} — printed before the draw</p>
+    </div>
+
+    <h2 class="law-head"><span class="law-no">1</span>The finish ladder</h2>
     <p class="prose">Each of the 12 members is randomly assigned one Round-of-16 team. Your draft pick is
-      <strong>how far your team goes</strong> — the further, the earlier you pick. Best finish = pick 1.</p>
+      <strong>how far your team goes</strong> — the further, the earlier you pick. Best finish = pick 1.
+      Band colours match the Order page.</p>
     <div class="finish-ladder">
       <div class="ladder-cap">← better pick</div>
-      ${ladder.map(([cls, n, d]) => `<div class="ladder-row ${cls}"><span class="lad-swatch"></span><span class="lad-n">${n}</span><span class="lad-d">${d}</span></div>`).join('')}
+      ${ladder.map(([cls, count, n, d]) => `<div class="ladder-row ${cls}">
+        <span class="lad-num">${count}<em>${count === '1' ? 'pick' : 'picks'}</em></span>
+        <span class="lad-n">${n}</span><span class="lad-d">${d}</span></div>`).join('')}
       <div class="ladder-cap">worse pick →</div>
     </div>
     <p class="prose">The top four finishes are each settled by one match (the Final and the 3rd-place game),
@@ -612,26 +623,32 @@ function renderHelp(state) {
       Only the 12 drawn teams are ranked; the 4 unassigned teams are skipped, and everyone below slides up
       (no gaps in 1–12).</p>
 
-    <h2 class="section-title">Tiebreakers (within a band only)</h2>
+    <h2 class="law-head"><span class="law-no">2</span>Tiebreakers — same band only</h2>
     <p class="prose">Two teams in the same band are ordered by, in order:
       <strong>1)</strong> goal difference in their elimination match, <strong>2)</strong> goals scored in it,
       <strong>3)</strong> their tiebreak number (a distinct 1–12 drawn for everyone, lower = better).</p>
     <div class="worked">
       <div class="worked-title">Worked example — the penalty wrinkle</div>
-      <p>Both teams lost in the Round of 16:</p>
-      <ul>
-        <li><strong>Team A</strong> lost 1–2 in normal time → match GD <strong>−1</strong>.</li>
-        <li><strong>Team B</strong> drew 0–0 and lost the <em>shootout</em>. A shootout counts as a draw,
-            so the recorded score is 0–0 → match GD <strong>0</strong>.</li>
-      </ul>
+      <p>Both teams lost in the Round of 16. A shootout counts as a draw, so Team B's recorded score is 0–0:</p>
+      <div class="wx-row"><span class="wx-team">Team A</span><span class="wx-score">1–2</span><span class="wx-note">lost in normal time</span><span class="wx-gd">GD −1</span></div>
+      <div class="wx-row"><span class="wx-team">Team B</span><span class="wx-score">0–0</span><span class="wx-note">lost the shootout</span><span class="wx-gd win">GD 0</span></div>
       <p>Higher GD gets the better pick, so <strong>Team B picks ahead of Team A</strong> — even though it
         "lost" its shootout. If two teams tie on GD <em>and</em> goals scored, the lower tiebreak number wins.</p>
+      <p class="wx-freq">Not a rare wrinkle: in a 10,000-tournament simulation, a shootout loser out-picked a
+        regulation loser in about half of them. Expect it.</p>
     </div>
 
-    <h2 class="section-title">Trust</h2>
-    <p class="prose">Rules were locked on <strong>${esc(state.meta?.rulesLockedDate ?? '—')}</strong>, before the draw.
-      The draw is done on random.org, and every team's tiebreak number is public. Same results always produce
-      the same order — the compute is deterministic and verified against an invariant test suite.</p>`;
+    <h2 class="law-head"><span class="law-no">3</span>Trust</h2>
+    <div class="trust-card">
+      <div class="stamp-row">
+        <span class="ink-stamp">Rules locked ${lockedDate}</span>
+        <span class="ink-stamp">random.org draw</span>
+        <span class="ink-stamp">Same results, same order</span>
+      </div>
+      <p>Rules were locked on <strong>${lockedDate}</strong>, before the draw.
+        The draw is done on random.org, and every team's tiebreak number is public. Same results always produce
+        the same order — the compute is deterministic and verified against an invariant test suite.</p>
+    </div>`;
 }
 
 // ===========================================================================

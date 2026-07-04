@@ -337,20 +337,46 @@ a:hover { text-decoration: underline; }
 .pick.order-moved { animation: movepulse 0.7s ease-out; }
 @keyframes movepulse { 0% { box-shadow: 0 0 0 0 var(--gold); } 40% { box-shadow: 0 0 14px -2px var(--gold); } 100% { box-shadow: 0 5px 14px -10px rgb(0 0 0 / 0.55); } }
 
-/* --- help --- */
+/* --- help: the matchday programme -----------------------------------------
+   Reference: a printed programme's rules page — a double-ruled cover plate,
+   sections numbered like the Laws of the Game, the finish ladder as mini
+   Order plates, and the trust marks inked on like rubber stamps. */
+.prog-mast { background: var(--card); color: var(--ink); border: 4px double var(--gold-deep); border-radius: var(--radius); padding: 16px 14px 13px; text-align: center; margin-bottom: 4px; }
+.prog-eyebrow { margin: 0; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-ink); }
+.prog-title { margin: 6px 0 4px; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; font-size: 1.55rem; line-height: 1; }
+.prog-edition { margin: 0; font-family: var(--font-mono); font-size: 0.68rem; color: var(--mut); }
+
+.law-head { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 6px; font-family: var(--font-heading); font-size: 1.02rem; font-weight: 700; color: var(--ground-ink); }
+.law-no { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--gold); line-height: 1; }
+
 .prose { font-size: 0.92rem; line-height: 1.6; margin: 8px 0; color: var(--ground-ink); }
 .prose strong { color: var(--ground-ink); }
 .prose em { color: var(--ground-mut); font-style: normal; }
+
 .finish-ladder { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin: 10px 0; }
 .ladder-cap { font-family: var(--font-mono); background: var(--card-2); color: var(--mut); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.12em; padding: 6px 12px; }
-.ladder-row { display: grid; grid-template-columns: 16px 120px 1fr; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--card); color: var(--ink); }
-.lad-swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--rung); }
-.lad-n { font-weight: 700; font-family: var(--font-heading); }
-.lad-d { color: var(--mut); font-size: 0.8rem; }
+.ladder-row { display: grid; grid-template-columns: 46px 96px 1fr; align-items: stretch; gap: 0 10px; border-top: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.lad-num { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--rung); color: var(--rank-ink); font-family: var(--font-display); font-size: 1.15rem; line-height: 1; padding: 7px 0 5px; }
+.lad-num em { font-style: normal; font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; margin-top: 2px; }
+.lad-n { font-weight: 700; font-family: var(--font-heading); align-self: center; padding: 8px 0; }
+.lad-d { color: var(--mut); font-size: 0.78rem; align-self: center; padding-right: 10px; }
+
 .worked { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--radius); padding: 12px 14px; margin: 8px 0; font-size: 0.88rem; }
 .worked-title { font-family: var(--font-heading); font-weight: 700; color: var(--gold-ink); margin-bottom: 4px; }
-.worked ul { margin: 6px 0; padding-left: 18px; }
-.worked li { margin: 3px 0; }
+.wx-row { display: grid; grid-template-columns: 60px 40px 1fr auto; gap: 8px; align-items: baseline; font-size: 0.86rem; padding: 6px 0; border-top: 1px dashed var(--line); }
+.wx-team { font-weight: 700; }
+.wx-score { font-family: var(--font-mono); font-weight: 700; }
+.wx-note { color: var(--mut); font-size: 0.78rem; }
+.wx-gd { font-family: var(--font-mono); font-size: 0.78rem; color: var(--mut); }
+.wx-gd.win { color: var(--green-ink); font-weight: 700; }
+.wx-freq { color: var(--mut); font-size: 0.8rem; margin-bottom: 0; border-top: 1px dashed var(--line); padding-top: 8px; }
+
+.trust-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; font-size: 0.88rem; }
+.trust-card p { margin: 10px 0 0; }
+.stamp-row { display: flex; flex-wrap: wrap; gap: 10px 14px; padding: 4px 0 2px; }
+.ink-stamp { font-family: var(--font-mono); font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green-ink); border: 2px solid currentColor; border-radius: 6px; padding: 5px 10px; transform: rotate(-2deg); }
+.ink-stamp:nth-child(2) { transform: rotate(1.4deg); }
+.ink-stamp:nth-child(3) { transform: rotate(-0.8deg); }
 
 /* --- admin --- */
 .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
