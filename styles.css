@@ -291,9 +291,9 @@ a:hover { text-decoration: underline; }
 .ml-pens { color: var(--gold-ink); }
 .ml-time { margin-left: auto; font-family: var(--font-mono); }
 
-/* live = coral rail; your run = gold rail (wins over the round colour) */
+/* live = coral rail; your run = a gold-washed card (fill reads where an edge won't) */
 .match-line.live { border-color: var(--coral); }
-.match-line.mine { border-color: var(--gold); }
+.match-line.mine { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--card)); }
 
 /* the Final: a foil slot; the winner earns a Champion tag */
 .r-Final .match-line { background: var(--gold-tint); border-color: var(--gold); }
