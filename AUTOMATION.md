@@ -98,7 +98,8 @@ One cycle:
    penalties live in the API's separate `score.penalties` field),
    `decidedByPens` (duration === `PENALTY_SHOOTOUT`), `penWinner` (API
    `score.winner` → team id), `status` (TIMED/SCHEDULED→scheduled,
-   IN_PLAY/PAUSED→in_progress, FINISHED→final).
+   IN_PLAY/PAUSED/LIVE/EXTRA_TIME/PENALTY_SHOOTOUT→in_progress,
+   FINISHED→final; LIVE was observed in the wild for a full half on Jul 5).
 6. **Auto-final double-check:** first poll seeing FINISHED writes a
    `pendingFinal` marker and keeps status `in_progress`; the next poll (60s
    later in live mode, next sweep in cron mode) still FINISHED with the same

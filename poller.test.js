@@ -37,6 +37,9 @@ const NOW = Date.parse('2026-07-04T22:00:00Z'); // mid-match for game 89
 check('TIMED → scheduled', mapStatus('TIMED') === 'scheduled');
 check('IN_PLAY → in_progress', mapStatus('IN_PLAY') === 'in_progress');
 check('PAUSED → in_progress', mapStatus('PAUSED') === 'in_progress');
+check('LIVE → in_progress (seen for a whole half, 2026-07-05)', mapStatus('LIVE') === 'in_progress');
+check('EXTRA_TIME → in_progress', mapStatus('EXTRA_TIME') === 'in_progress');
+check('PENALTY_SHOOTOUT → in_progress', mapStatus('PENALTY_SHOOTOUT') === 'in_progress');
 check('FINISHED → final', mapStatus('FINISHED') === 'final');
 check('POSTPONED → null (never written)', mapStatus('POSTPONED') === null);
 
@@ -208,6 +211,16 @@ const FMAP = { 89: 111 };
     nowMs: Date.parse('2026-07-08T12:00:00Z'), // no match within the window
   });
   check('nothing live or imminent → inactive', plan.active === false);
+}
+{ // a LIVE-status match keeps the loop alive even outside the kickoff window
+  // (ET + pens can outlast WINDOW_MIN; the API said LIVE all 2nd half on Jul 5)
+  const plan = planCycle({
+    state: freshState(),
+    apiMatches: [api({ id: 111, status: 'LIVE', score: { winner: null, duration: 'REGULAR', fullTime: { home: 1, away: 1 } } })],
+    fixtureMap: FMAP, pending: {}, nowMs: Date.parse('2026-07-08T12:00:00Z'),
+  });
+  check('LIVE keeps the loop active beyond the window', plan.active === true);
+  check('LIVE maps to a status write, not a problem', plan.problems.length === 0 && plan.writes.some((w) => w.data.status === 'in_progress'));
 }
 
 // --- report ------------------------------------------------------------------

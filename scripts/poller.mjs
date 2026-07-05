@@ -48,9 +48,14 @@ const WINDOW_MIN = 210;   // ...and keep the window open this long after (ET + p
 
 // --- pure helpers (exported for poller.test.js) -----------------------------
 
+// In-play synonyms — football-data v4 uses several: IN_PLAY/PAUSED, the
+// documented EXTRA_TIME / PENALTY_SHOOTOUT phases, and plain LIVE (observed
+// for an entire half in the BRA–NOR dry run, 2026-07-05, run 28753017881).
+const API_IN_PLAY = new Set(['IN_PLAY', 'PAUSED', 'LIVE', 'EXTRA_TIME', 'PENALTY_SHOOTOUT']);
+
 export function mapStatus(apiStatus) {
   if (apiStatus === 'SCHEDULED' || apiStatus === 'TIMED') return 'scheduled';
-  if (apiStatus === 'IN_PLAY' || apiStatus === 'PAUSED') return 'in_progress';
+  if (API_IN_PLAY.has(apiStatus)) return 'in_progress';
   if (apiStatus === 'FINISHED' || apiStatus === 'AWARDED') return 'final';
   return null; // POSTPONED / SUSPENDED / CANCELLED — never write these blind
 }
@@ -234,7 +239,7 @@ export function planCycle({ state, apiMatches, fixtureMap, pending, nowMs }) {
 
   // Keep looping while anything is live, imminent, or awaiting final confirmation.
   const mappedApiIds = new Set(Object.values(fixtureMap));
-  const anyLive = apiMatches.some((a) => mappedApiIds.has(a.id) && (a.status === 'IN_PLAY' || a.status === 'PAUSED'));
+  const anyLive = apiMatches.some((a) => mappedApiIds.has(a.id) && API_IN_PLAY.has(a.status));
   const anyWindow = matches.some((m) => {
     if (m.status === 'final') return false;
     const ko = Date.parse(m.datetimeISO);
