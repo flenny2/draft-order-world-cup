@@ -560,3 +560,36 @@ select, input[type="number"], input[type="email"], input[type="password"], input
 .summary-box { display: flex; flex-direction: column; gap: 8px; }
 .summary-box textarea { background: var(--card); color: var(--ink); border: 1px solid var(--line);
   border-radius: var(--radius-sm); padding: 9px 10px; font-family: var(--font-body); font-size: 1rem; line-height: 1.5; resize: vertical; }
+
+/* --- sticker card v2: SHOW the 2026 story — final group table + the
+   knockout run as scorelines (live from the store), no recap prose. --- */
+.card-face { max-height: min(86vh, 760px); overflow-y: auto; overscroll-behavior: contain; }
+
+.sc-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.7rem; margin-top: 2px; }
+.sc-table th { font-weight: 400; font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); padding: 0 3px 4px; text-align: center; }
+.sc-table th.t-team { text-align: left; padding-left: 0; }
+.sc-table td { padding: 4px 3px; text-align: center; border-top: 1px dashed var(--line); }
+.sc-table td.t-team { display: flex; align-items: center; gap: 6px; text-align: left; padding-left: 0; min-width: 0; }
+.sc-table .t-team .flag { width: 1.25em; height: 1.25em; }
+.sc-table .t-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-table .t-g { white-space: nowrap; }
+.sc-table .t-pts { font-weight: 700; }
+/* green dot = advanced — the same signal the ladder uses for "alive" */
+.sc-table .t-adv { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex: none; }
+/* your card's team, struck gold in its own table */
+.sc-table tr.me td { background: var(--gold-tint); font-weight: 700; }
+.sc-table tr.me td:first-child { border-radius: 5px 0 0 5px; }
+.sc-table tr.me td:last-child { border-radius: 0 5px 5px 0; }
+
+.sc-run { display: flex; flex-direction: column; }
+.run-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px dashed var(--line); font-size: 0.84rem; }
+.run-row:first-child { border-top: 0; }
+.run-mark { font-family: var(--font-mono); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.05em; color: #2a2410; background: var(--rail, #a6a08e); border-radius: 5px; padding: 2px 6px; flex: none; min-width: 30px; text-align: center; }
+.run-opp { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 600; }
+.run-opp .flag { width: 1.3em; height: 1.3em; }
+.tl-plain { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-res { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+.run-res em { font-style: normal; font-weight: 400; font-size: 0.68rem; color: var(--mut); }
+.run-res .run-live { color: var(--coral); font-weight: 700; }
+.run-row.win .run-res { color: var(--green-ink); }
+.run-row.lose { opacity: 0.6; }

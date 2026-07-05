@@ -15,7 +15,7 @@ import { computeDraftOrder, getUnassignedTeams, validate, matchWinnerLoser, reso
 import { bracketTopology } from './data.js';
 import { kickoffMs, nextMatch, countdown, groupByDay } from './schedule.js';
 import { snapshot, formatUpdate } from './report.js';
-import { teamProfiles, memberHistory } from './profiles.js';
+import { teamProfiles, memberHistory, groups } from './profiles.js';
 
 const BAND_LABEL = {
   ALIVE: 'Still alive', CHAMPION: 'Champion', RUNNER_UP: 'Runner-up', SF_LOSER: '3rd or 4th',
@@ -51,6 +51,11 @@ function flag(team, alt = '') {
   return iso
     ? `<img class="flag" src="flags/${iso}.svg" alt="${esc(alt)}" width="24" height="24" loading="lazy" />`
     : '<span class="flag flag-tbd" aria-hidden="true"></span>';
+}
+// Same medallion straight from a circle-flags iso code — for nations that
+// aren't in teams[] (group-table rivals, R32 opponents on the sticker card).
+function flagIso(iso, alt = '') {
+  return `<img class="flag" src="flags/${esc(iso)}.svg" alt="${esc(alt)}" width="24" height="24" loading="lazy" />`;
 }
 const ME_KEY = 'wcdraft.me.v1';
 const getMe = () => { try { return localStorage.getItem(ME_KEY); } catch { return null; } };
@@ -422,15 +427,12 @@ function renderOrder(state) {
   const nowLocked = new Set(picks.filter((p) => p.locked).map((p) => p.member.id));
   const newlyLocked = new Set([...nowLocked].filter((id) => !prevLocked.has(id)));
 
+  // No mode banner: the phase pill, the lock tally, the toggle labels and the
+  // per-plate badges already SHOW everything the banner used to tell.
   const controls = picks.length ? `
     <div class="toggle">
       <button data-act="mode" data-mode="projected" class="${viewMode === 'projected' ? 'on' : ''}">Projected</button>
       <button data-act="mode" data-mode="locked" class="${viewMode === 'locked' ? 'on' : ''}">Locked only</button>
-    </div>
-    <div class="mode-banner">
-      ${phase === 'final' ? '<span><strong>The order is final.</strong> Every pick is locked.</span>'
-        : viewMode === 'projected' ? `<span><strong>If scores hold.</strong> ${lockedCount}/12 picks are locked; the rest can still move.</span>`
-        : `<span><strong>Locked order.</strong> ${lockedCount}/12 picks can no longer change.</span>`}
     </div>` : '';
 
   const body = picks.length
@@ -474,7 +476,7 @@ function featuredNext(state) {
       <div class="mq-tag"><span class="livedot"></span> Live now · ${ROUND_LABEL[next.round]}</div>
       <div class="mq-teams">${teams}</div>
       <div class="mq-score">${next.scoreA ?? 0} – ${next.scoreB ?? 0}</div>
-      <div class="mq-sub">${next.venue ? esc(next.venue) + ' · ' : ''}picks shift live as it plays</div>
+      ${next.venue ? `<div class="mq-sub">${esc(next.venue)}</div>` : ''}
     </div>`;
   }
   const when = k != null ? ' · ' + new Date(k).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
@@ -557,9 +559,7 @@ function renderBracket(state) {
       <div class="bracket-round">${cells}</div>
     </section>`;
   };
-  const myTid = myTeamId(state);
-  const hint = myTid ? `<p class="tz-note">Your team's run is highlighted in gold.</p>` : '';
-  view().innerHTML = `${nav()}${meBar(state)}${hint}${rounds.map(block).join('')}`;
+  view().innerHTML = `${nav()}${meBar(state)}${rounds.map(block).join('')}`;
 }
 
 // ===========================================================================
@@ -641,7 +641,6 @@ function summariesEditor(state) {
   const current = state.teams.find((t) => t.id === summaryTeamId) ?? state.teams[0];
   if (!current) return '';
   const saved = state.summaries?.[current.id] ?? '';
-  const builtIn = teamProfiles[current.id]?.summary ?? '';
   return `
     <h2 class="section-title">Team cards — “2026 so far”</h2>
     <div class="summary-box">
@@ -649,10 +648,10 @@ function summariesEditor(state) {
         ${state.teams.map((t) => `<option value="${esc(t.id)}" ${t.id === current.id ? 'selected' : ''}>${esc(t.flagEmoji)} ${esc(t.name)}${state.summaries?.[t.id] ? ' ·' : ''}</option>`).join('')}
       </select>
       <textarea data-field="summary-text" rows="3" maxlength="400" aria-label="${esc(current.name)} — 2026 summary"
-        placeholder="${esc(builtIn || `1–3 sentences for ${current.name}’s card.`)}">${esc(summaryDraft ?? saved)}</textarea>
+        placeholder="Optional colour for ${esc(current.name)}’s card — the table and results are already on it.">${esc(summaryDraft ?? saved)}</textarea>
       <div class="admin-actions">
         <button data-act="save-summary" class="btn-secondary">Save summary</button>
-        <p class="hint">Blank = the card shows the built-in text (greyed above). Save to replace it; empty + save returns to the built-in. A “·” marks teams with a saved override.</p>
+        <p class="hint">Empty + save removes the section. A “·” marks teams with one.</p>
       </div>
     </div>`;
 }
@@ -819,9 +818,7 @@ function renderHelp(state) {
   view().innerHTML = `
     ${nav()}
     <div class="prog-mast">
-      <p class="prog-eyebrow">Official programme</p>
       <h2 class="prog-title">How the draft order works</h2>
-      <p class="prog-edition">Rules edition · locked ${lockedDate} — printed before the draw</p>
     </div>
 
     <h2 class="law-head"><span class="law-no">1</span>The finish ladder</h2>
@@ -901,10 +898,59 @@ const foilStars = (n) => (n ? `<span class="foil-stars">${'★'.repeat(n)}</span
 const statRow = (label, value, sub) =>
   `<div class="sc-row"><span class="sc-label">${label}</span><span class="sc-val">${value}${sub ? `<em>${sub}</em>` : ''}</span></div>`;
 
+// The final group table, straight standings — the viewer's team struck gold,
+// advancing rows carrying the app's green "alive" dot instead of a caption.
+function groupTable(team, p) {
+  const rows = groups[p.group];
+  if (!rows) return '';
+  const myIso = isoFromFlag(team.flagEmoji);
+  return `<p class="sc-sec">Group ${esc(p.group)} — final table</p>
+  <table class="sc-table">
+    <thead><tr><th class="t-team">Team</th><th>W</th><th>D</th><th>L</th><th class="t-g">GF–GA</th><th>Pts</th></tr></thead>
+    <tbody>${rows.map(([iso, name, w, d, l, gf, ga, adv]) => `
+      <tr class="${iso === myIso ? 'me' : ''}">
+        <td class="t-team">${flagIso(iso)}<span class="t-name">${esc(name)}</span>${adv ? '<span class="t-adv" title="advanced to the knockouts" aria-label="advanced"></span>' : ''}</td>
+        <td>${w}</td><td>${d}</td><td>${l}</td><td class="t-g">${gf}–${ga}</td><td class="t-pts">${w * 3 + d}</td>
+      </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// The knockout run as scorelines: the (static, pre-app) R32 result, then this
+// team's live matches straight from the store — the card updates itself as
+// rounds finish, no prose to rewrite. Opponents are tappable (their card
+// replaces this one in the open dialog).
+const RUN_MARK = { R16: 'R16', QF: 'QF', SF: 'SF', '3rd': '3rd', Final: 'F' };
+function knockoutRun(team, state, p) {
+  const rows = [];
+  if (p.r32) rows.push(`<div class="run-row win">
+    <span class="run-mark">R32</span>
+    <span class="run-opp">${flagIso(p.r32.iso)}<span class="tl-plain">${esc(p.r32.name)}</span></span>
+    <span class="run-res">${esc(p.r32.score)}${p.r32.pens ? ' <em>won pens</em>' : ''}</span>
+  </div>`);
+  for (const m of state.matches) {
+    if (m.teamA !== team.id && m.teamB !== team.id) continue;
+    const opp = state.teams.find((t) => t.id === (m.teamA === team.id ? m.teamB : m.teamA));
+    const mine = m.teamA === team.id ? m.scoreA : m.scoreB;
+    const theirs = m.teamA === team.id ? m.scoreB : m.scoreA;
+    const wl = matchWinnerLoser(m); // final only
+    const won = wl && wl.winner === team.id;
+    const k = kickoffMs(m);
+    const res = m.status === 'final'
+      ? `${mine}–${theirs}${m.decidedByPens ? ` <em>${m.penWinner === team.id ? 'won' : 'lost'} pens</em>` : ''}`
+      : m.status === 'in_progress' ? `<em class="run-live">LIVE</em> ${mine ?? 0}–${theirs ?? 0}`
+      : k != null ? `<em>${esc(new Date(k).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }))}</em>` : '<em>TBD</em>';
+    rows.push(`<div class="run-row${wl ? (won ? ' win' : ' lose') : ''}">
+      <span class="run-mark">${RUN_MARK[m.round] ?? esc(m.round)}</span>
+      <span class="run-opp">${opp ? teamTap(opp, `${flag(opp)}<span class="tl">${esc(opp.name)}</span>`) : '<span class="tbd">— TBD —</span>'}</span>
+      <span class="run-res">${res}</span>
+    </div>`);
+  }
+  return rows.length ? `<p class="sc-sec">Knockout run</p><div class="sc-run">${rows.join('')}</div>` : '';
+}
+
 function teamFace(team, state, { canFlip, owner }) {
   const p = teamProfiles[team.id];
-  // DB summary (saved in #admin) overrides the built-in baseline from profiles.js
-  const summary = state.summaries?.[team.id] ?? p?.summary;
+  const summary = state.summaries?.[team.id]; // optional admin colour — the table + run above show the facts
   return `<div class="card-face sc-front" role="group" aria-label="${esc(team.name)} — team card">
     <div class="sc-head">
       ${flag(team)}
@@ -914,8 +960,9 @@ function teamFace(team, state, { canFlip, owner }) {
       </div>
       <span class="sc-code">${esc(team.code ?? team.id)}</span>
     </div>
-    ${p ? `<div class="sc-stats">
-      ${statRow('2026 group', esc(p.groupFinish), esc(p.groupRecord))}
+    ${p ? `${groupTable(team, p)}
+    ${knockoutRun(team, state, p)}
+    <div class="sc-stats">
       ${statRow('World Cups', `${nth(p.appearances)} appearance`, `debut ${p.debut}`)}
       ${statRow('Titles', foilStars(p.titles))}
       ${statRow('Best finish', esc(p.bestFinish))}
@@ -983,7 +1030,9 @@ function openCard({ teamId, memberId }) {
     <div class="card3d${startFlipped ? ' flipped' : ''}">${faces}</div>`;
   const c3 = dlg.querySelector('.card3d');
   if (canFlip) syncCardFaces(c3);
-  dlg.showModal();
+  // A tap on an opponent inside the knockout-run block swaps the card in
+  // place — calling showModal() on an already-open dialog would throw.
+  if (!dlg.open) dlg.showModal();
 }
 
 function render() {
