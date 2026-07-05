@@ -288,10 +288,9 @@ function matchdayWire(state) {
     return computeDraftOrder({ ...state, matches: resolveBracket(ms, bracketTopology), includeProvisional: true }).picks;
   };
 
-  // First pass over open games: who has the most riding today gets the garnish.
+  // Open games: two engine runs each, read by both owners.
   const open = slate.filter((m) => m.status !== 'final');
-  const rows = new Map(); // match id -> [{ o, team, mine, theirs, pW, pL }]
-  let swingKing = null, swingMax = 0;
+  const rows = new Map(); // match id -> [{ o, team, otherTeam, mine, theirs, pW, pL }]
   for (const m of open) {
     const ordA = pickIf(m, m.teamA), ordB = pickIf(m, m.teamB);
     const r = [];
@@ -301,9 +300,8 @@ function matchdayWire(state) {
       const isA = t === m.teamA;
       const pW = pickOf(isA ? ordA : ordB, o.id), pL = pickOf(isA ? ordB : ordA, o.id);
       if (pW == null || pL == null) continue;
-      r.push({ o, team: tm.get(t), mine: isA ? (m.scoreA ?? 0) : (m.scoreB ?? 0), theirs: isA ? (m.scoreB ?? 0) : (m.scoreA ?? 0), pW, pL });
-      const s = Math.abs(pW - pL);
-      if (s > swingMax) { swingMax = s; swingKing = o.id; }
+      r.push({ o, team: tm.get(t), otherTeam: tm.get(isA ? m.teamB : m.teamA),
+        mine: isA ? (m.scoreA ?? 0) : (m.scoreB ?? 0), theirs: isA ? (m.scoreB ?? 0) : (m.scoreA ?? 0), pW, pL });
     }
     rows.set(m.id, r);
   }
@@ -317,25 +315,24 @@ function matchdayWire(state) {
         const o = mbt.get(t);
         const p = o ? pickOf(current, o.id) : null;
         if (!wl || !o || p == null) continue;
-        if (wl.winner === t) out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong> marches on — pick ${p} if it all stands</div>`);
+        if (wl.winner === t) out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong>: pick <strong>${p}</strong> if scores hold</div>`);
         else {
           const gd = t === m.teamA ? (m.scoreA ?? 0) - (m.scoreB ?? 0) : (m.scoreB ?? 0) - (m.scoreA ?? 0);
           out.push(m.decidedByPens
-            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong> out on penalties — counts as a draw (${gdTxt(gd)}), sitting at pick ${p}</div>`
-            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong> takes the exit (${gdTxt(gd)}) — sitting at pick ${p}</div>`);
+            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out on pens (counts as a draw, ${gdTxt(gd)}) — pick <strong>${p}</strong> if scores hold</div>`
+            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out (${gdTxt(gd)}) — pick <strong>${p}</strong> if scores hold</div>`);
         }
       }
       return out.join('');
     }
     for (const r of rows.get(m.id) ?? []) {
       let txt;
-      if (r.pW === r.pL) txt = `pick ${r.pW} either way — nothing riding on this one`;
-      else if (m.status !== 'in_progress') txt = `pick ${r.pW} with a win · pick ${r.pL} with an exit`;
-      else if (r.mine > r.theirs) txt = `pick ${r.pW} if ${esc(r.team.name)} hold on · pick ${r.pL} if it flips`;
-      else if (r.mine < r.theirs) txt = `pick ${r.pL} as it stands · pick ${r.pW} if ${esc(r.team.name)} turn it around`;
-      else txt = `level — pick ${r.pW} if ${esc(r.team.name)} edge it, pick ${r.pL} if not`;
-      const garnish = r.o.id === swingKing && swingMax >= 3 && r.pW !== r.pL ? ' — nobody has more riding today' : '';
-      out.push(`<div class="wi-line"><strong>${esc(r.o.name)}</strong>: ${txt}${garnish}</div>`);
+      if (r.pW === r.pL) txt = `pick <strong>${r.pW}</strong> either way`;
+      else if (m.status !== 'in_progress') txt = `pick <strong>${r.pW}</strong> with a win · pick <strong>${r.pL}</strong> with a loss`;
+      else if (r.mine === r.theirs) txt = `level — pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win · pick <strong>${r.pL}</strong> if not`;
+      else if (r.mine > r.theirs) txt = `pick <strong>${r.pW}</strong> if this score holds · pick <strong>${r.pL}</strong> if ${esc(r.otherTeam.name)} win`;
+      else txt = `pick <strong>${r.pL}</strong> if this score holds · pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win`;
+      out.push(`<div class="wi-line"><strong>${esc(r.o.name)}</strong>: ${txt}</div>`);
     }
     return out.join('');
   };
@@ -351,21 +348,26 @@ function matchdayWire(state) {
     return `<div class="wi-score">${badge}${flag(a)} ${esc(a.name)} ${mid} ${esc(b.name)} ${flag(b)}${pens}</div>`;
   };
 
-  // Tiebreak watch: same-band neighbours with identical elimination numbers —
-  // only the (public) tiebreak number separates them.
+  // Tiebreak in play: same-band neighbours with identical elimination numbers —
+  // only the (public) tiebreak number separates them. Shown only when it's real.
   const tb = [];
   for (let i = 0; i + 1 < current.length; i++) {
     const p = current[i], q = current[i + 1];
     if (p.band === q.band && p.matchGD != null && q.matchGD != null && p.matchGD === q.matchGD && p.matchGF === q.matchGF)
-      tb.push(`<div class="wi-line"><strong>${esc(p.member.name)}</strong> #${p.tiebreakNumber} edges <strong>${esc(q.member.name)}</strong> #${q.tiebreakNumber} — identical exits (${gdTxt(p.matchGD)}, ${p.matchGF} scored)</div>`);
+      tb.push(`<div class="wi-line"><strong>${esc(p.member.name)}</strong> #${p.tiebreakNumber} ahead of <strong>${esc(q.member.name)}</strong> #${q.tiebreakNumber} — identical results (${gdTxt(p.matchGD)}, ${p.matchGF} scored), so the lower tiebreak number picks first</div>`);
   }
-  const tbBlock = `<div class="wire-item"><div class="wi-score"><span class="wi-tb">TB</span> Tiebreak watch</div>
-    ${tb.length ? tb.join('') : '<div class="wi-line">No coin-flips yet — every exit separated on goal difference or goals scored</div>'}</div>`;
+  const tbBlock = tb.length
+    ? `<div class="wire-item"><div class="wi-score"><span class="wi-tb">TB</span> Tiebreak in play</div>${tb.join('')}</div>`
+    : '';
+  const note = open.length
+    ? `<div class="wire-note">Pick numbers show where each person lands in that outcome — nothing locks until results are final.</div>`
+    : '';
 
   return `<div class="wire">
     <div class="wire-head"><span class="wire-tag">Matchday wire</span><span class="wire-date">${esc(now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))}</span></div>
     ${slate.map((m) => `<div class="wire-item">${scoreRow(m)}${stakeLines(m)}</div>`).join('')}
     ${tbBlock}
+    ${note}
   </div>`;
 }
 

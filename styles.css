@@ -181,6 +181,7 @@ a:hover { text-decoration: underline; }
 .wi-line strong { color: var(--ink); font-weight: 700; }
 .wi-line.good strong { color: var(--green-ink); }
 .wi-line.bad strong { color: var(--coral-ink); }
+.wire-note { font-family: var(--font-mono); font-size: 0.68rem; color: var(--mut); border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 7px; }
 
 /* --- toggle + banner --- */
 .toggle { display: flex; gap: 6px; margin-bottom: 10px; }
