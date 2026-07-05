@@ -4,7 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>World Cup Fantasy — Draft Order</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>" />
+  <!-- Share preview (iMessage/WhatsApp/etc). og:image must be an absolute URL;
+       og-card.png + apple-touch-icon.png are generated author-side in the
+       Collectible style — no runtime cost. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="World Cup Fantasy — Draft Order" />
+  <meta property="og:description" content="The World Cup decides who drafts first. Live picks, schedule, bracket & what-ifs." />
+  <meta property="og:url" content="https://flenny2.github.io/draft-order-world-cup/" />
+  <meta property="og:image" content="https://flenny2.github.io/draft-order-world-cup/og-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <!-- Foil-plate mark (premium iconography — no emoji): inline SVG favicon + PNG for iOS home screen -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23efd98a'/><stop offset='.48' stop-color='%23c6a24c'/><stop offset='.5' stop-color='%23a07d2c'/><stop offset='1' stop-color='%23e6cf82'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230b3a34'/><rect x='10' y='10' width='44' height='44' rx='10' fill='url(%23g)'/><text x='32' y='45' text-anchor='middle' font-family='Arial Black,Impact,sans-serif' font-size='32' font-weight='900' fill='%233a2c07'>1</text></svg>" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <!-- Type: Anton (jersey display), Hanken Grotesk (text), Space Mono (data/ticker).
        Self-hosted — no third-party font requests. -->
   <link rel="stylesheet" href="fonts.css" />
@@ -17,7 +30,7 @@
       <h1 class="wordmark">Draft&nbsp;<em>Order.</em></h1>
       <!-- Static on purpose: app.js handles [data-act] via document-level delegation,
            so this works without being re-rendered. -->
-      <button data-act="theme" class="icon-btn theme-corner" title="Switch day / night theme" aria-label="Switch theme">◐</button>
+      <button data-act="theme" class="icon-btn theme-corner" title="Switch day / night theme" aria-label="Switch theme"><svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.4a6.6 6.6 0 0 1 0 13.2z" fill="currentColor"/></svg></button>
     </header>
     <!-- Rendered by app.js from engine output. No ruleset logic lives in the DOM. -->
     <div id="view"></div>
