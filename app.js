@@ -512,10 +512,10 @@ function renderAdmin(state) {
       <button data-act="reset" class="btn-danger">Reset to blank seed</button>
       <button data-act="signout" class="btn-secondary">Sign out</button>
     </div>
-    <h2 class="section-title">The draw — assignments &amp; tiebreak numbers</h2>
-    <div class="assign-list">${state.members.map((m) => assignmentRow(m, state.teams)).join('')}</div>
     <h2 class="section-title">Results</h2>
     <div class="match-list">${state.matches.map((m) => matchCard(m, state.teams)).join('')}</div>
+    <h2 class="section-title">The draw — assignments &amp; tiebreak numbers</h2>
+    <div class="assign-list">${state.members.map((m) => assignmentRow(m, state.teams)).join('')}</div>
     <h2 class="section-title">League update (paste into the group chat)</h2>
     <div class="update-box">
       <textarea id="update-text" class="update-text" readonly rows="14" aria-label="League update text">${esc(formatUpdate({ state, baseline: getBaseline(), url: publicUrl(), now: Date.now() }))}</textarea>
