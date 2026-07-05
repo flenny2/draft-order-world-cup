@@ -96,8 +96,10 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // Sticker-card tap targets. Bound ONLY through these helpers so every surface
 // is a deliberate choice: never inside another control (the what-if coupon
 // cells are already <button>s — nested buttons are invalid HTML — and admin
-// selects/wire lines stay plain text). The dotted gold underline (CSS
-// .tapcard) is the "there's a card here" affordance.
+// edit controls stay controls). Names inside prose sentences (wire stake
+// lines, pens labels) also stay plain — the tap lives on the score row or
+// label above them. The dotted gold underline (CSS .tapcard) is the
+// "there's a card here" affordance.
 function teamTap(team, inner) {
   if (!team || !teamProfiles[team.id]) return inner; // TBD/placeholder teams have no card
   return `<button type="button" class="tapcard" data-act="card" data-team="${esc(team.id)}" aria-haspopup="dialog" title="${esc(team.name)} — team card">${inner}</button>`;
@@ -171,7 +173,7 @@ function matchLine(m, state, { showTime, crown } = {}) {
     return `<div class="ml-side${win ? ' win' : ''}${lose ? ' lose' : ''}${owner && owner.id === meId ? ' mine' : ''}">
       <span class="ml-team">${teamLabel(t)}${win ? ' <span class="adv">✓</span>' : ''}</span>
       ${win && crown ? '<span class="champ-tag">Champion</span>' : ''}
-      ${owner ? `<span class="ml-owner">${esc(owner.name)}</span>` : ''}
+      ${owner ? memberTap(owner, `<span class="ml-owner">${esc(owner.name)}</span>`) : ''}
       ${scoreTxt}
     </div>`;
   };
@@ -262,9 +264,10 @@ function meBar(state) {
   const team = state.teams.find((t) => t.id === me.teamId);
   const { picks } = computeDraftOrder({ ...state, includeProvisional: true });
   const mine = picks.find((p) => p.member.id === me.id);
+  const teamBtn = team ? teamTap(team, `${flag(team)} <span class="tl">${esc(team.name)}</span>`) : '';
   const standing = !team ? 'not assigned yet'
-    : !mine ? `${flag(team)} ${esc(team.name)}`
-    : `${flag(team)} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
+    : !mine ? teamBtn
+    : `${teamBtn} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
     <span>You're ${memberTap(me, `<strong>${esc(me.name)}</strong>`)} — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>
@@ -382,7 +385,7 @@ function matchdayWire(state) {
       : `<span class="wi-ft">${k != null ? esc(new Date(k).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : 'TBD'}</span>`;
     const mid = m.status === 'scheduled' ? '<span class="wi-v">v</span>' : `${m.scoreA ?? 0}–${m.scoreB ?? 0}`;
     const pens = m.decidedByPens && m.status === 'final' ? ` <span class="wi-pens">pens: ${esc(tm.get(m.penWinner)?.name ?? '?')}</span>` : '';
-    return `<div class="wi-score">${badge}${flag(a)} ${esc(a.name)} ${mid} ${esc(b.name)} ${flag(b)}${pens}</div>`;
+    return `<div class="wi-score">${badge}${teamTap(a, `${flag(a)} <span class="tl">${esc(a.name)}</span>`)} ${mid} ${teamTap(b, `<span class="tl">${esc(b.name)}</span> ${flag(b)}`)}${pens}</div>`;
   };
 
   // Tiebreak in play: same-band neighbours with identical elimination numbers —
@@ -638,6 +641,7 @@ function summariesEditor(state) {
   const current = state.teams.find((t) => t.id === summaryTeamId) ?? state.teams[0];
   if (!current) return '';
   const saved = state.summaries?.[current.id] ?? '';
+  const builtIn = teamProfiles[current.id]?.summary ?? '';
   return `
     <h2 class="section-title">Team cards — “2026 so far”</h2>
     <div class="summary-box">
@@ -645,10 +649,10 @@ function summariesEditor(state) {
         ${state.teams.map((t) => `<option value="${esc(t.id)}" ${t.id === current.id ? 'selected' : ''}>${esc(t.flagEmoji)} ${esc(t.name)}${state.summaries?.[t.id] ? ' ·' : ''}</option>`).join('')}
       </select>
       <textarea data-field="summary-text" rows="3" maxlength="400" aria-label="${esc(current.name)} — 2026 summary"
-        placeholder="1–3 sentences for ${esc(current.name)}’s card. Empty + save removes the section.">${esc(summaryDraft ?? saved)}</textarea>
+        placeholder="${esc(builtIn || `1–3 sentences for ${current.name}’s card.`)}">${esc(summaryDraft ?? saved)}</textarea>
       <div class="admin-actions">
         <button data-act="save-summary" class="btn-secondary">Save summary</button>
-        <p class="hint">Shows under “2026 so far” on the team’s card. A “·” in the list marks teams that already have one.</p>
+        <p class="hint">Blank = the card shows the built-in text (greyed above). Save to replace it; empty + save returns to the built-in. A “·” marks teams with a saved override.</p>
       </div>
     </div>`;
 }
@@ -899,7 +903,8 @@ const statRow = (label, value, sub) =>
 
 function teamFace(team, state, { canFlip, owner }) {
   const p = teamProfiles[team.id];
-  const summary = state.summaries?.[team.id];
+  // DB summary (saved in #admin) overrides the built-in baseline from profiles.js
+  const summary = state.summaries?.[team.id] ?? p?.summary;
   return `<div class="card-face sc-front" role="group" aria-label="${esc(team.name)} — team card">
     <div class="sc-head">
       ${flag(team)}
