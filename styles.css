@@ -153,6 +153,35 @@ a:hover { text-decoration: underline; }
 .phase-pill.gold { color: var(--gold); border-color: var(--gold); background: transparent; }
 .lock-tally { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ground-mut); }
 
+/* --- matchday wire ---------------------------------------------------------
+   Reference: the Saturday vidiprinter — a sprocket-holed teletype strip.
+   Today's slate, each entry a score line plus the computed stakes lines;
+   punched feed holes run down the left edge (ground-coloured discs, echoing
+   the coupon punches and ticket notches). Shown only when there's a slate. */
+.wire { position: relative; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 10px 12px 10px 30px; margin-bottom: 12px;
+  box-shadow: 0 5px 14px -10px rgb(0 0 0 / 0.5); }
+.wire::before { content: ""; position: absolute; left: 9px; top: 8px; bottom: 8px; width: 10px;
+  background-image: radial-gradient(circle at 5px 8px, var(--ground) 3px, transparent 3.6px);
+  background-size: 10px 18px; background-repeat: repeat-y; opacity: 0.85; }
+.wire-head { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+.wire-tag { font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--coral-ink); }
+.wire-date { font-family: var(--font-mono); font-size: 0.66rem; color: var(--mut); margin-left: auto; }
+.wire-item { padding: 8px 0 2px; border-bottom: 1px dashed var(--line); }
+.wire-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.wi-score { font-family: var(--font-mono); font-weight: 700; font-size: 0.86rem; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.wi-score .flag { width: 1.2em; height: 1.2em; }
+.wi-v { color: var(--mut); font-weight: 400; }
+.wi-pens { color: var(--gold-ink); font-size: 0.7rem; font-weight: 400; }
+.wi-ft, .wi-live, .wi-tb { font-size: 0.6rem; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 4px; flex: none; text-transform: uppercase; }
+.wi-ft { background: var(--card-2); color: var(--mut); border: 1px solid var(--line); }
+.wi-live { background: var(--coral); color: #fff; }
+.wi-tb { background: var(--gold-tint); color: var(--gold-ink); border: 1px solid var(--gold); }
+.wi-line { font-family: var(--font-mono); font-size: 0.74rem; color: var(--mut); margin: 4px 0; line-height: 1.5; }
+.wi-line strong { color: var(--ink); font-weight: 700; }
+.wi-line.good strong { color: var(--green-ink); }
+.wi-line.bad strong { color: var(--coral-ink); }
+
 /* --- toggle + banner --- */
 .toggle { display: flex; gap: 6px; margin-bottom: 10px; }
 .toggle button { flex: 1; padding: 9px; background: var(--card); color: var(--mut); border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.85rem; font-family: var(--font-body); }

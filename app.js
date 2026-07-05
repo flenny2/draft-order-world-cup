@@ -251,6 +251,125 @@ function meBar(state) {
 }
 
 // ===========================================================================
+// MATCHDAY WIRE — the vidiprinter strip on the Order page. Today's slate +
+// what's riding on each game, straight from the engine. All numbers computed
+// (two engine runs per open match, like the what-if insights); the banter
+// templates key on those facts and never invent anything. Uses
+// includeProvisional: true throughout so every pick number agrees with the
+// projected ladder rendered right below it (what-if's orderFor does not).
+// ===========================================================================
+const sameLocalDay = (ms, now) => { const d = new Date(ms); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate(); };
+
+function todaysSlate(state, now) {
+  const rank = (m) => (m.status === 'in_progress' ? 0 : m.status === 'final' ? 1 : 2);
+  return state.matches
+    .filter((m) => m.teamA && m.teamB && (m.status === 'in_progress' || (kickoffMs(m) != null && sameLocalDay(kickoffMs(m), now))))
+    .sort((a, b) => rank(a) - rank(b) || (kickoffMs(a) ?? 0) - (kickoffMs(b) ?? 0));
+}
+
+function matchdayWire(state) {
+  const now = new Date();
+  const slate = todaysSlate(state, now);
+  if (!slate.length) return '';
+  const tm = teamMap(state);
+  const mbt = memberByTeam(state);
+  const current = computeDraftOrder({ ...state, includeProvisional: true }).picks;
+
+  // "pick N if <winner>": finalize just this match — keep the real score when the
+  // winner is already ahead ("if it stands"), else nudge them one goal clear —
+  // then advance the bracket and re-run the engine in the ladder's provisional frame.
+  const pickIf = (m, winnerId) => {
+    const sa = m.scoreA ?? 0, sb = m.scoreB ?? 0;
+    const aWins = winnerId === m.teamA;
+    const scoreA = aWins ? Math.max(sa, sb + 1) : sa;
+    const scoreB = aWins ? sb : Math.max(sb, sa + 1);
+    const ms = state.matches.map((x) => x.id === m.id
+      ? { ...x, status: 'final', scoreA, scoreB, decidedByPens: false, penWinner: null } : x);
+    return computeDraftOrder({ ...state, matches: resolveBracket(ms, bracketTopology), includeProvisional: true }).picks;
+  };
+
+  // First pass over open games: who has the most riding today gets the garnish.
+  const open = slate.filter((m) => m.status !== 'final');
+  const rows = new Map(); // match id -> [{ o, team, mine, theirs, pW, pL }]
+  let swingKing = null, swingMax = 0;
+  for (const m of open) {
+    const ordA = pickIf(m, m.teamA), ordB = pickIf(m, m.teamB);
+    const r = [];
+    for (const t of [m.teamA, m.teamB]) {
+      const o = mbt.get(t);
+      if (!o) continue;
+      const isA = t === m.teamA;
+      const pW = pickOf(isA ? ordA : ordB, o.id), pL = pickOf(isA ? ordB : ordA, o.id);
+      if (pW == null || pL == null) continue;
+      r.push({ o, team: tm.get(t), mine: isA ? (m.scoreA ?? 0) : (m.scoreB ?? 0), theirs: isA ? (m.scoreB ?? 0) : (m.scoreA ?? 0), pW, pL });
+      const s = Math.abs(pW - pL);
+      if (s > swingMax) { swingMax = s; swingKing = o.id; }
+    }
+    rows.set(m.id, r);
+  }
+
+  const gdTxt = (gd) => `GD ${gd > 0 ? '+' : gd < 0 ? '−' : ''}${Math.abs(gd)}`;
+  const stakeLines = (m) => {
+    const out = [];
+    if (m.status === 'final') {
+      const wl = matchWinnerLoser(m);
+      for (const t of [m.teamA, m.teamB]) {
+        const o = mbt.get(t);
+        const p = o ? pickOf(current, o.id) : null;
+        if (!wl || !o || p == null) continue;
+        if (wl.winner === t) out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong> marches on — pick ${p} if it all stands</div>`);
+        else {
+          const gd = t === m.teamA ? (m.scoreA ?? 0) - (m.scoreB ?? 0) : (m.scoreB ?? 0) - (m.scoreA ?? 0);
+          out.push(m.decidedByPens
+            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong> out on penalties — counts as a draw (${gdTxt(gd)}), sitting at pick ${p}</div>`
+            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong> takes the exit (${gdTxt(gd)}) — sitting at pick ${p}</div>`);
+        }
+      }
+      return out.join('');
+    }
+    for (const r of rows.get(m.id) ?? []) {
+      let txt;
+      if (r.pW === r.pL) txt = `pick ${r.pW} either way — nothing riding on this one`;
+      else if (m.status !== 'in_progress') txt = `pick ${r.pW} with a win · pick ${r.pL} with an exit`;
+      else if (r.mine > r.theirs) txt = `pick ${r.pW} if ${esc(r.team.name)} hold on · pick ${r.pL} if it flips`;
+      else if (r.mine < r.theirs) txt = `pick ${r.pL} as it stands · pick ${r.pW} if ${esc(r.team.name)} turn it around`;
+      else txt = `level — pick ${r.pW} if ${esc(r.team.name)} edge it, pick ${r.pL} if not`;
+      const garnish = r.o.id === swingKing && swingMax >= 3 && r.pW !== r.pL ? ' — nobody has more riding today' : '';
+      out.push(`<div class="wi-line"><strong>${esc(r.o.name)}</strong>: ${txt}${garnish}</div>`);
+    }
+    return out.join('');
+  };
+
+  const scoreRow = (m) => {
+    const a = tm.get(m.teamA), b = tm.get(m.teamB);
+    const k = kickoffMs(m);
+    const badge = m.status === 'in_progress' ? '<span class="wi-live">LIVE</span>'
+      : m.status === 'final' ? '<span class="wi-ft">FT</span>'
+      : `<span class="wi-ft">${k != null ? esc(new Date(k).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : 'TBD'}</span>`;
+    const mid = m.status === 'scheduled' ? '<span class="wi-v">v</span>' : `${m.scoreA ?? 0}–${m.scoreB ?? 0}`;
+    const pens = m.decidedByPens && m.status === 'final' ? ` <span class="wi-pens">pens: ${esc(tm.get(m.penWinner)?.name ?? '?')}</span>` : '';
+    return `<div class="wi-score">${badge}${flag(a)} ${esc(a.name)} ${mid} ${esc(b.name)} ${flag(b)}${pens}</div>`;
+  };
+
+  // Tiebreak watch: same-band neighbours with identical elimination numbers —
+  // only the (public) tiebreak number separates them.
+  const tb = [];
+  for (let i = 0; i + 1 < current.length; i++) {
+    const p = current[i], q = current[i + 1];
+    if (p.band === q.band && p.matchGD != null && q.matchGD != null && p.matchGD === q.matchGD && p.matchGF === q.matchGF)
+      tb.push(`<div class="wi-line"><strong>${esc(p.member.name)}</strong> #${p.tiebreakNumber} edges <strong>${esc(q.member.name)}</strong> #${q.tiebreakNumber} — identical exits (${gdTxt(p.matchGD)}, ${p.matchGF} scored)</div>`);
+  }
+  const tbBlock = `<div class="wire-item"><div class="wi-score"><span class="wi-tb">TB</span> Tiebreak watch</div>
+    ${tb.length ? tb.join('') : '<div class="wi-line">No coin-flips yet — every exit separated on goal difference or goals scored</div>'}</div>`;
+
+  return `<div class="wire">
+    <div class="wire-head"><span class="wire-tag">Matchday wire</span><span class="wire-date">${esc(now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))}</span></div>
+    ${slate.map((m) => `<div class="wire-item">${scoreRow(m)}${stakeLines(m)}</div>`).join('')}
+    ${tbBlock}
+  </div>`;
+}
+
+// ===========================================================================
 // PUBLIC: draft order
 // ===========================================================================
 function renderOrder(state) {
@@ -285,6 +404,7 @@ function renderOrder(state) {
       <span class="phase-pill ${PHASE[phase].cls}">${PHASE[phase].label}</span>
       ${picks.length ? `<span class="lock-tally">${lockedCount}/12 locked</span>` : ''}
     </div>
+    ${picks.length ? matchdayWire(state) : ''}
     ${controls}
     ${body}
     <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
