@@ -53,6 +53,10 @@ function normalize(s) {
     members: asArray(s?.members),
     matches: asArray(s?.matches),
     meta: s?.meta ?? { rulesLockedDate: null, lastUpdated: null },
+    // "2026 so far" texts for the sticker cards, keyed by teamId. Lives in the
+    // DB (not the repo) so a summary edit goes live like a score does — no
+    // deploy. RTDB drops the node entirely when it's empty; default it back.
+    summaries: s?.summaries ?? {},
   };
 }
 
@@ -169,6 +173,17 @@ export function setMatch(matchId, patch) {
     let matches = state.matches.map((m) => (m.id === matchId ? { ...m, ...patch } : m));
     matches = resolveBracket(matches, bracketTopology); // auto-feed winners downstream
     return { ...state, matches };
+  });
+}
+
+// Sticker-card summary for one team. Rides the same whole-/state admin write
+// as everything else, so no security-rules change is needed. Empty text
+// deletes the entry (the card simply omits its "2026 so far" section).
+export function setSummary(teamId, text) {
+  return guardedWrite(() => {
+    const summaries = { ...state.summaries };
+    if (text) summaries[teamId] = text; else delete summaries[teamId];
+    return { ...state, summaries };
   });
 }
 

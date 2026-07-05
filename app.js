@@ -15,6 +15,7 @@ import { computeDraftOrder, getUnassignedTeams, validate, matchWinnerLoser, reso
 import { bracketTopology } from './data.js';
 import { kickoffMs, nextMatch, countdown, groupByDay } from './schedule.js';
 import { snapshot, formatUpdate } from './report.js';
+import { teamProfiles, memberHistory } from './profiles.js';
 
 const BAND_LABEL = {
   ALIVE: 'Still alive', CHAMPION: 'Champion', RUNNER_UP: 'Runner-up', SF_LOSER: '3rd or 4th',
@@ -79,6 +80,8 @@ let writeStatus = { pending: 0, error: null }; // last write outcome, from store
 let predictions = {}; // what-if explorer sandbox: matchId -> { winner } (never written to store)
 let prevLocked = new Set(); // member ids locked at last order render → drives the just-locked pulse
 let celebrated = false; // fire the final-locks celebration only once per completion
+let summaryTeamId = null; // admin: which team's "2026 so far" text is being edited
+let summaryDraft = null; // admin: unsaved textarea text — survives the re-render a live score triggers
 
 const view = () => document.getElementById('view');
 
@@ -90,7 +93,23 @@ const myTeamId = (state) => { const m = state.members.find((x) => x.id === meId)
 // ===========================================================================
 // Shared renderers
 // ===========================================================================
-function teamLabel(team) { return team ? `${flag(team)} ${esc(team.name)}` : '<span class="tbd">— TBD —</span>'; }
+// Sticker-card tap targets. Bound ONLY through these helpers so every surface
+// is a deliberate choice: never inside another control (the what-if coupon
+// cells are already <button>s — nested buttons are invalid HTML — and admin
+// selects/wire lines stay plain text). The dotted gold underline (CSS
+// .tapcard) is the "there's a card here" affordance.
+function teamTap(team, inner) {
+  if (!team || !teamProfiles[team.id]) return inner; // TBD/placeholder teams have no card
+  return `<button type="button" class="tapcard" data-act="card" data-team="${esc(team.id)}" aria-haspopup="dialog" title="${esc(team.name)} — team card">${inner}</button>`;
+}
+function memberTap(member, inner) {
+  if (!member) return inner;
+  return `<button type="button" class="tapcard" data-act="card" data-member="${esc(member.id)}" aria-haspopup="dialog" title="${esc(member.name)} — league history">${inner}</button>`;
+}
+
+// Used by the bracket lines, schedule tickets and the marquee — all verified
+// button-free contexts, so the label itself can be the card tap target.
+function teamLabel(team) { return team ? teamTap(team, `${flag(team)} <span class="tl">${esc(team.name)}</span>`) : '<span class="tbd">— TBD —</span>'; }
 
 function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
@@ -112,8 +131,10 @@ function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
     <div class="pick${top1}${aliveCls}${mineCls}${pulse}${movedCls}${bandCls}">
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
-        <div class="pick-member">${esc(p.member.name)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
-        <div class="pick-team">${flag(p.team)}<span class="team-name">${p.team ? esc(p.team.name) : 'unassigned'}</span></div>
+        <div class="pick-member">${memberTap(p.member, `<span>${esc(p.member.name)}</span>`)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
+        <div class="pick-team">${p.team
+          ? teamTap(p.team, `${flag(p.team)}<span class="team-name">${esc(p.team.name)}</span>`)
+          : '<span class="team-name">unassigned</span>'}</div>
       </div>
       <div class="pick-meta">${bandTag}${statLine}${status}</div>
     </div>`;
@@ -245,7 +266,7 @@ function meBar(state) {
     : !mine ? `${flag(team)} ${esc(team.name)}`
     : `${flag(team)} ${esc(team.name)} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
-    <span>You're <strong>${esc(me.name)}</strong> — ${standing}</span>
+    <span>You're ${memberTap(me, `<strong>${esc(me.name)}</strong>`)} — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>
   </div>`;
 }
@@ -425,7 +446,7 @@ function renderOrder(state) {
     ${body}
     <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
     <div class="unassigned">
-      ${unassigned.map((t) => `<span class="chip">${flag(t)} ${esc(t.name)}</span>`).join('') || '<span class="chip">—</span>'}
+      ${unassigned.map((t) => `<span class="chip">${teamTap(t, `${flag(t)} <span class="tl">${esc(t.name)}</span>`)}</span>`).join('') || '<span class="chip">—</span>'}
     </div>
     ${trustStamps(state)}`;
 
@@ -488,7 +509,7 @@ function scheduleTicket(m, state) {
     const scoreTxt = (m.status === 'final' || m.status === 'in_progress') && sc != null ? `<span class="tk-score">${sc}</span>` : '';
     return `<div class="tk-side${win ? ' win' : ''}${lose ? ' lose' : ''}${owner && owner.id === meId ? ' mine' : ''}">
       <span class="tk-team">${teamLabel(t)}${win ? ' <span class="adv">✓</span>' : ''}</span>
-      ${owner ? `<span class="tk-owner">${esc(owner.name)}</span>` : ''}${scoreTxt}</div>`;
+      ${owner ? memberTap(owner, `<span class="tk-owner">${esc(owner.name)}</span>`) : ''}${scoreTxt}</div>`;
   };
   const pens = m.decidedByPens && m.status === 'final' ? ` · <span class="ml-pens">pens: ${esc(tm.get(m.penWinner)?.name ?? '?')}</span>` : '';
   return `<article class="ticket${m.status === 'in_progress' ? ' live' : ''}${mineCls}">
@@ -609,6 +630,29 @@ function matchCard(m, teams) {
     </details>
   </div>`;
 }
+// "2026 so far" editor for the sticker cards: pick a team, type 1–3 sentences,
+// save. Writes to /state/summaries/<teamId> — live for every viewer instantly,
+// no deploy. summaryDraft (module state) keeps unsaved text across the
+// re-renders that live score updates trigger.
+function summariesEditor(state) {
+  const current = state.teams.find((t) => t.id === summaryTeamId) ?? state.teams[0];
+  if (!current) return '';
+  const saved = state.summaries?.[current.id] ?? '';
+  return `
+    <h2 class="section-title">Team cards — “2026 so far”</h2>
+    <div class="summary-box">
+      <select data-act="pick-summary-team" aria-label="Team whose summary to edit">
+        ${state.teams.map((t) => `<option value="${esc(t.id)}" ${t.id === current.id ? 'selected' : ''}>${esc(t.flagEmoji)} ${esc(t.name)}${state.summaries?.[t.id] ? ' ·' : ''}</option>`).join('')}
+      </select>
+      <textarea data-field="summary-text" rows="3" maxlength="400" aria-label="${esc(current.name)} — 2026 summary"
+        placeholder="1–3 sentences for ${esc(current.name)}’s card. Empty + save removes the section.">${esc(summaryDraft ?? saved)}</textarea>
+      <div class="admin-actions">
+        <button data-act="save-summary" class="btn-secondary">Save summary</button>
+        <p class="hint">Shows under “2026 so far” on the team’s card. A “·” in the list marks teams that already have one.</p>
+      </div>
+    </div>`;
+}
+
 // Save toast: fixed to the bottom so it's visible wherever the admin is
 // scrolled. "Saving…" that lingers means the write is queued offline (see
 // store.js); an error means the change was NOT saved and must be redone.
@@ -652,6 +696,7 @@ function renderAdmin(state) {
     <div class="match-list">${state.matches.map((m) => matchCard(m, state.teams)).join('')}</div>
     <h2 class="section-title">The draw — assignments &amp; tiebreak numbers</h2>
     <div class="assign-list">${state.members.map((m) => assignmentRow(m, state.teams)).join('')}</div>
+    ${summariesEditor(state)}
     <h2 class="section-title">League update (paste into the group chat)</h2>
     <div class="update-box">
       <textarea id="update-text" class="update-text" readonly rows="14" aria-label="League update text">${esc(formatUpdate({ state, baseline: getBaseline(), url: publicUrl(), now: Date.now() }))}</textarea>
@@ -837,6 +882,105 @@ function startTick() { stopTick(); updateCountdowns(); tickTimer = setInterval(u
 // ===========================================================================
 // render dispatch
 // ===========================================================================
+// ===========================================================================
+// STICKER CARD — tap a country → team card; tap a leaguemate → their league
+// history, which is literally the card BACK (3-D flip; the global
+// reduced-motion rule collapses the turn to an instant swap). Content is a
+// snapshot of the state at open time — live score updates re-render #view but
+// deliberately leave an open card alone (it sits outside #app).
+// ===========================================================================
+const cardDialog = () => document.getElementById('card-dialog');
+
+const nth = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]); };
+// Foil stars — one per title/championship, struck in the pick-1 gradient.
+const foilStars = (n) => (n ? `<span class="foil-stars">${'★'.repeat(n)}</span>` : '<span class="sc-none">—</span>');
+const statRow = (label, value, sub) =>
+  `<div class="sc-row"><span class="sc-label">${label}</span><span class="sc-val">${value}${sub ? `<em>${sub}</em>` : ''}</span></div>`;
+
+function teamFace(team, state, { canFlip, owner }) {
+  const p = teamProfiles[team.id];
+  const summary = state.summaries?.[team.id];
+  return `<div class="card-face sc-front" role="group" aria-label="${esc(team.name)} — team card">
+    <div class="sc-head">
+      ${flag(team)}
+      <div class="sc-title">
+        <p class="sc-eyebrow">2026 World Cup</p>
+        <p class="sc-name">${esc(team.name)}</p>
+      </div>
+      <span class="sc-code">${esc(team.code ?? team.id)}</span>
+    </div>
+    ${p ? `<div class="sc-stats">
+      ${statRow('2026 group', esc(p.groupFinish), esc(p.groupRecord))}
+      ${statRow('World Cups', `${nth(p.appearances)} appearance`, `debut ${p.debut}`)}
+      ${statRow('Titles', foilStars(p.titles))}
+      ${statRow('Best finish', esc(p.bestFinish))}
+    </div>
+    <p class="sc-sec">Key players</p>
+    <p class="sc-players">${p.keyPlayers.map(esc).join(' · ')}</p>
+    ${p.note ? `<p class="sc-note">${esc(p.note)}</p>` : ''}` : ''}
+    ${summary ? `<p class="sc-sec">2026 so far</p><p class="sc-summary">${esc(summary)}</p>` : ''}
+    <div class="sc-foot">
+      <span class="sc-ownerline">${owner
+        ? `Drawn by <strong>${esc(owner.name)}</strong>${owner.tiebreakNumber != null ? ` · tiebreak #${owner.tiebreakNumber}` : ''}`
+        : 'Not drawn — out of play'}</span>
+      ${canFlip ? `<button type="button" class="sc-flip" data-act="card-flip">⟲ ${esc(owner.name)}’s league history</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function memberFace(member, state, { canFlip, team }) {
+  const h = memberHistory[member.name]; // keyed by display name; a miss shows NO stats (never someone else's)
+  const winPct = h ? (h.wins / (h.wins + h.losses)).toFixed(3).replace(/^0/, '') : null;
+  return `<div class="card-face sc-back" role="group" aria-label="${esc(member.name)} — league history">
+    <div class="sc-head">
+      <div class="sc-title">
+        <p class="sc-eyebrow">LPPC league history</p>
+        <p class="sc-name">${esc(member.name)}</p>
+      </div>
+    </div>
+    ${h ? `<div class="sc-stats">
+      ${statRow('Seasons', h.seasons, esc(h.tenure))}
+      ${statRow('All-time record', `${h.wins}–${h.losses}`, `${winPct} win rate`)}
+      ${statRow('Last season', `${nth(h.lastSeasonFinish)} of 12`)}
+      ${statRow('Championships', foilStars(h.championships))}
+      ${statRow('Last places', h.lastPlaces || '<span class="sc-none">—</span>')}
+      ${statRow('Avg draft spot', h.avgDraftSpot.toFixed(1))}
+    </div>` : '<p class="sc-note">No league history on file for this name.</p>'}
+    <div class="sc-foot">
+      <span class="sc-ownerline">${team ? `2026 team: <strong>${esc(team.name)}</strong>` : 'No team drawn'}</span>
+      ${canFlip ? `<button type="button" class="sc-flip" data-act="card-flip">⟲ ${esc(team.name)} team card</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// Hidden face: unreachable by pointer (CSS) AND by assistive tech / tabbing.
+function syncCardFaces(c3) {
+  const flipped = c3.classList.contains('flipped');
+  c3.querySelector('.sc-front')?.toggleAttribute('inert', flipped);
+  c3.querySelector('.sc-back')?.toggleAttribute('inert', !flipped);
+}
+
+function openCard({ teamId, memberId }) {
+  const state = appState;
+  let team = teamId ? state.teams.find((t) => t.id === teamId) : null;
+  let member = memberId ? state.members.find((m) => m.id === memberId) : null;
+  if (member && !team) team = state.teams.find((t) => t.id === member.teamId) ?? null;
+  if (team && !member) member = memberByTeam(state).get(team.id) ?? null;
+  if (!team && !member) return;
+
+  const canFlip = !!(team && member);
+  const startFlipped = canFlip && !!memberId; // a member tap opens on the history side
+  const faces = `${team ? teamFace(team, state, { canFlip, owner: member }) : ''}
+                 ${member ? memberFace(member, state, { canFlip, team }) : ''}`;
+  const dlg = cardDialog();
+  dlg.innerHTML = `
+    <button type="button" class="sc-close" data-act="card-close" aria-label="Close card">✕</button>
+    <div class="card3d${startFlipped ? ' flipped' : ''}">${faces}</div>`;
+  const c3 = dlg.querySelector('.card3d');
+  if (canFlip) syncCardFaces(c3);
+  dlg.showModal();
+}
+
 function render() {
   stopTick();
   meId = getMe();
@@ -899,6 +1043,13 @@ document.addEventListener('change', (e) => {
   if (act === 'assign') readAssignment(e.target.closest('[data-assign-row]').dataset.assignRow);
   else if (act === 'match') readMatch(e.target.closest('[data-match-card]').dataset.matchCard);
   else if (act === 'setme') { setMe(e.target.value || null); render(); }
+  else if (act === 'pick-summary-team') { summaryTeamId = e.target.value; summaryDraft = null; render(); }
+});
+
+// The summary textarea saves on the button, not on change — so a live-score
+// re-render mid-sentence must not eat the draft. Track it as it's typed.
+document.addEventListener('input', (e) => {
+  if (e.target.dataset.field === 'summary-text') summaryDraft = e.target.value;
 });
 
 document.addEventListener('click', (e) => {
@@ -906,6 +1057,20 @@ document.addEventListener('click', (e) => {
   const act = btn ? btn.dataset.act : null;
   if (!act) return;
   if (act === 'mode') { viewMode = btn.dataset.mode; render(); }
+  else if (act === 'card') openCard({ teamId: btn.dataset.team, memberId: btn.dataset.member });
+  else if (act === 'card-close') cardDialog().close();
+  else if (act === 'card-flip') {
+    const c3 = cardDialog().querySelector('.card3d');
+    c3.classList.toggle('flipped');
+    syncCardFaces(c3);
+    // the button just tapped is now on the hidden face — hand focus to its twin
+    c3.querySelector('.card-face:not([inert]) .sc-flip')?.focus();
+  }
+  else if (act === 'save-summary') {
+    const ta = document.querySelector('[data-field="summary-text"]');
+    store.setSummary(document.querySelector('[data-act="pick-summary-team"]').value, ta.value.trim());
+    summaryDraft = null; // saved — let renders show the store's truth again
+  }
   else if (act === 'theme') { theme = theme === 'day' ? 'night' : 'day'; setTheme(theme); applyTheme(theme); render(); }
   else if (act === 'clearme') { setMe(null); render(); }
   else if (act === 'predict') {
@@ -939,6 +1104,10 @@ document.addEventListener('click', (e) => {
 });
 
 window.addEventListener('hashchange', render);
+
+// Sticker card: a tap on the backdrop closes it (a click there targets the
+// <dialog> element itself, never the card inside). Esc is native to showModal.
+cardDialog().addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 // Don't let the tab close while a write is still queued (e.g. offline) — the
 // RTDB web SDK has no disk persistence, so an unsent write dies with the tab.

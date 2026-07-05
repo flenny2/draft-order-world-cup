@@ -493,3 +493,70 @@ select, input[type="number"], input[type="email"], input[type="password"], input
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* =======================================================================
+   STICKER CARD — tap a country or a leaguemate anywhere: a Panini-style
+   collectible in a modal. Team crest on the front; the owner's league
+   history is literally the card BACK (3-D flip — the reduced-motion rule
+   above collapses the turn to an instant swap). The dialog lives outside
+   #app so live re-renders can't tear an open card down.
+   ======================================================================= */
+/* the affordance: tappable names carry a faint dotted gold underline */
+.tapcard { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer; text-align: left; min-width: 0; vertical-align: baseline; }
+.tapcard > :where(span, strong) { text-decoration: underline dotted 1px;
+  text-decoration-color: color-mix(in srgb, var(--gold) 55%, transparent); text-underline-offset: 3px; }
+.tapcard:hover > :where(span, strong) { text-decoration-color: var(--gold); }
+.pick-team .tapcard { gap: 7px; color: inherit; }
+
+.card-dialog { border: 0; padding: 0; background: transparent; overflow: visible;
+  width: min(92vw, 340px); perspective: 1100px; }
+.card-dialog::backdrop { background: rgb(4 18 15 / 0.65); backdrop-filter: blur(2px); }
+.sc-close { position: absolute; top: -46px; right: -4px; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); cursor: pointer; font-size: 1rem; }
+.sc-close:hover { border-color: var(--gold); }
+
+/* both faces share one grid cell so the dialog is as tall as the taller face */
+.card3d { display: grid; transform-style: preserve-3d; transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.3, 1); }
+.card3d.flipped { transform: rotateY(180deg); }
+.card-face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--card); color: var(--ink); border: 4px double var(--gold-deep); border-radius: 14px;
+  padding: 14px 16px 12px; box-shadow: 0 18px 44px -18px rgb(0 0 0 / 0.6); overflow-wrap: break-word; }
+.sc-back { transform: rotateY(180deg); }
+/* the hidden face is inert (JS) — also make sure it can't catch a stray tap */
+.card-face[inert] { pointer-events: none; }
+
+.sc-head { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid var(--gold-deep); padding-bottom: 10px; }
+.sc-head .flag { width: 46px; height: 46px; box-shadow: 0 0 0 2px var(--gold-deep), 0 0 0 3px rgb(0 0 0 / 0.12); }
+.sc-title { min-width: 0; }
+.sc-eyebrow { margin: 0; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-ink); }
+.sc-name { margin: 2px 0 0; font-family: var(--font-display); font-weight: 400; font-size: 1.65rem; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; }
+.sc-code { margin-left: auto; font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; color: var(--mut); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
+
+.sc-stats { margin-top: 6px; }
+.sc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+.sc-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mut); white-space: nowrap; }
+.sc-val { text-align: right; font-weight: 700; font-size: 0.9rem; }
+.sc-val em { display: block; font-style: normal; font-weight: 400; font-family: var(--font-mono); font-size: 0.68rem; color: var(--mut); margin-top: 1px; }
+.sc-none { color: var(--mut); font-weight: 400; }
+.foil-stars { font-size: 1rem; letter-spacing: 3px; padding-left: 3px;
+  background: linear-gradient(135deg, #efd98a, #c6a24c 48%, #a07d2c 52%, #e6cf82);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.sc-sec { margin: 12px 0 2px; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gold-ink); }
+.sc-players { margin: 0; font-size: 0.88rem; font-weight: 600; line-height: 1.5; }
+.sc-note { margin: 10px 0 0; font-size: 0.78rem; color: var(--mut); border-left: 3px solid var(--gold); padding-left: 9px; }
+.sc-summary { margin: 0; font-size: 0.88rem; line-height: 1.55; }
+
+.sc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border-top: 2px solid var(--gold-deep); margin-top: 12px; padding-top: 9px; }
+.sc-ownerline { font-size: 0.78rem; color: var(--mut); }
+.sc-ownerline strong { color: var(--ink); }
+.sc-flip { background: var(--card-2); color: var(--gold-ink); border: 1px solid var(--gold); border-radius: 999px;
+  padding: 7px 12px; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; cursor: pointer; }
+.sc-flip:hover { background: var(--gold-tint); }
+
+/* --- admin: the "2026 so far" editor --- */
+.summary-box { display: flex; flex-direction: column; gap: 8px; }
+.summary-box textarea { background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 9px 10px; font-family: var(--font-body); font-size: 1rem; line-height: 1.5; resize: vertical; }

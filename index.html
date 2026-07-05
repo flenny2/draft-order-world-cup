@@ -40,6 +40,11 @@
       <p class="foot-admin"><a href="#admin">Commissioner sign-in</a></p>
     </footer>
   </main>
+  <!-- Sticker card (team front / owner's league-history back). Lives OUTSIDE
+       #app on purpose: every store update re-renders the page into #view, and
+       a dialog inside it would be torn down mid-read the moment a live score
+       lands. app.js fills and opens it on demand. -->
+  <dialog id="card-dialog" class="card-dialog"></dialog>
   <script type="module" src="app.js"></script>
 </body>
 </html>
