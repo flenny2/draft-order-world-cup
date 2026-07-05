@@ -307,31 +307,50 @@ function matchdayWire(state) {
   }
 
   const gdTxt = (gd) => `GD ${gd > 0 ? '+' : gd < 0 ? '−' : ''}${Math.abs(gd)}`;
+  // A win only EARNS a pick in the Final and the 3rd-place game (one match =
+  // one finish). Everywhere else a win means "still alive" — say that, so
+  // leaguemates who skimmed the rules aren't promised a number a win can't
+  // guarantee. "for now" flags every number that can still move; "locked in"
+  // uses the engine's own lock flag.
+  const NEXT_ROUND = { R16: 'the quarterfinals', QF: 'the semifinals', SF: 'the final' };
+  const FINISH = { Final: ['champion', 'runner-up'], '3rd': ['third place', 'fourth place'] };
   const stakeLines = (m) => {
+    const exact = !!FINISH[m.round];
     const out = [];
     if (m.status === 'final') {
       const wl = matchWinnerLoser(m);
       for (const t of [m.teamA, m.teamB]) {
         const o = mbt.get(t);
-        const p = o ? pickOf(current, o.id) : null;
-        if (!wl || !o || p == null) continue;
-        if (wl.winner === t) out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong>: pick <strong>${p}</strong> if scores hold</div>`);
-        else {
+        const pk = o ? current.find((x) => x.member.id === o.id) : null;
+        if (!wl || !o || !pk) continue;
+        const tail = pk.locked ? `pick <strong>${pk.pickNumber}</strong>, locked in` : `pick <strong>${pk.pickNumber}</strong> for now`;
+        if (wl.winner === t) {
+          const lead = exact ? `${FINISH[m.round][0]} — ` : `through to ${NEXT_ROUND[m.round]} — `;
+          out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong>: ${lead}${tail}</div>`);
+        } else if (exact) {
+          out.push(`<div class="wi-line bad"><strong>${esc(o.name)}</strong>: ${FINISH[m.round][1]} — ${tail}</div>`);
+        } else {
           const gd = t === m.teamA ? (m.scoreA ?? 0) - (m.scoreB ?? 0) : (m.scoreB ?? 0) - (m.scoreA ?? 0);
           out.push(m.decidedByPens
-            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out on pens (counts as a draw, ${gdTxt(gd)}) — pick <strong>${p}</strong> if scores hold</div>`
-            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out (${gdTxt(gd)}) — pick <strong>${p}</strong> if scores hold</div>`);
+            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out on pens (counts as a draw, ${gdTxt(gd)}) — ${tail}</div>`
+            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out (${gdTxt(gd)}) — ${tail}</div>`);
         }
       }
       return out.join('');
     }
     for (const r of rows.get(m.id) ?? []) {
       let txt;
-      if (r.pW === r.pL) txt = `pick <strong>${r.pW}</strong> either way`;
-      else if (m.status !== 'in_progress') txt = `pick <strong>${r.pW}</strong> with a win · pick <strong>${r.pL}</strong> with a loss`;
-      else if (r.mine === r.theirs) txt = `level — pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win · pick <strong>${r.pL}</strong> if not`;
-      else if (r.mine > r.theirs) txt = `pick <strong>${r.pW}</strong> if this score holds · pick <strong>${r.pL}</strong> if ${esc(r.otherTeam.name)} win`;
-      else txt = `pick <strong>${r.pL}</strong> if this score holds · pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win`;
+      if (r.pW === r.pL) txt = `pick <strong>${r.pW}</strong> either way for now`;
+      else if (exact) { // Final / 3rd place: this one result IS the finish
+        if (m.status !== 'in_progress') txt = `pick <strong>${r.pW}</strong> with a win · pick <strong>${r.pL}</strong> with a loss`;
+        else if (r.mine === r.theirs) txt = `level — pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win · pick <strong>${r.pL}</strong> if not`;
+        else if (r.mine > r.theirs) txt = `pick <strong>${r.pW}</strong> if this score holds · pick <strong>${r.pL}</strong> if ${esc(r.otherTeam.name)} win`;
+        else txt = `pick <strong>${r.pL}</strong> if this score holds · pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win`;
+      }
+      else if (m.status !== 'in_progress') txt = `still alive with a win (pick <strong>${r.pW}</strong> for now) · out with a loss (pick <strong>${r.pL}</strong>)`;
+      else if (r.mine === r.theirs) txt = `level — still alive with a win (pick <strong>${r.pW}</strong> for now), out with a loss (pick <strong>${r.pL}</strong>)`;
+      else if (r.mine > r.theirs) txt = `through as it stands — pick <strong>${r.pW}</strong> for now · out if it flips (pick <strong>${r.pL}</strong>)`;
+      else txt = `out as it stands (pick <strong>${r.pL}</strong>) · still alive if ${esc(r.team.name)} come back (pick <strong>${r.pW}</strong>)`;
       out.push(`<div class="wi-line"><strong>${esc(r.o.name)}</strong>: ${txt}</div>`);
     }
     return out.join('');
@@ -359,9 +378,7 @@ function matchdayWire(state) {
   const tbBlock = tb.length
     ? `<div class="wire-item"><div class="wi-score"><span class="wi-tb">TB</span> Tiebreak in play</div>${tb.join('')}</div>`
     : '';
-  const note = open.length
-    ? `<div class="wire-note">Pick numbers show where each person lands in that outcome — nothing locks until results are final.</div>`
-    : '';
+  const note = `<div class="wire-note">Reminder: your pick = how far your team goes. Numbers keep shifting until results lock them in — <a href="#help">how the order works</a>.</div>`;
 
   return `<div class="wire">
     <div class="wire-head"><span class="wire-tag">Matchday wire</span><span class="wire-date">${esc(now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))}</span></div>
