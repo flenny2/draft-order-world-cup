@@ -172,6 +172,9 @@ function matchLine(m, state, { showTime, crown } = {}) {
 // ===========================================================================
 // Nav + "find my team" bar
 // ===========================================================================
+// Programme index tabs — one row, the active page raised as a cream tab.
+// Admin only appears once signed in (the footer's "Commissioner sign-in" link
+// covers getting there on a fresh device); theme toggle lives in the masthead.
 function nav() {
   const h = location.hash;
   const link = (href, label) => {
@@ -179,11 +182,7 @@ function nav() {
     return `<a href="${href}" class="${on ? 'active' : ''}"${on ? ' aria-current="page"' : ''}>${label}</a>`;
   };
   return `<nav class="nav">
-    <div class="nav-links">${link('#', 'Order')}${link('#schedule', 'Schedule')}${link('#bracket', 'Bracket')}${link('#whatif', 'What-if')}${link('#help', 'Help')}${link('#admin', 'Admin')}</div>
-    <div class="nav-actions">
-      <button data-act="theme" class="icon-btn" title="Switch to ${theme === 'day' ? 'night' : 'day'} theme" aria-label="Switch theme">◐</button>
-      ${admin ? '<button data-act="signout" class="link-btn">sign out</button>' : ''}
-    </div>
+    <div class="nav-links">${link('#', 'Order')}${link('#schedule', 'Schedule')}${link('#bracket', 'Bracket')}${link('#whatif', 'What-if')}${link('#help', 'Help')}${admin ? link('#admin', 'Admin') : ''}</div>
   </nav>`;
 }
 
@@ -511,6 +510,7 @@ function renderAdmin(state) {
     <div class="admin-actions">
       <button data-act="load-demo" class="btn-secondary">Load demo tournament</button>
       <button data-act="reset" class="btn-danger">Reset to blank seed</button>
+      <button data-act="signout" class="btn-secondary">Sign out</button>
     </div>
     <h2 class="section-title">The draw — assignments &amp; tiebreak numbers</h2>
     <div class="assign-list">${state.members.map((m) => assignmentRow(m, state.teams)).join('')}</div>
@@ -714,7 +714,19 @@ function render() {
   }
   const ts = appState.meta?.lastUpdated;
   document.getElementById('last-updated').textContent = ts ? 'Last updated: ' + new Date(ts).toLocaleString() : '';
+  navNudge();
 }
+
+// The tab row only overflows when Admin's sixth tab is present — make sure the
+// active tab is never hidden past the scroll edge (no-op when everything fits).
+// Also re-run once the webfonts land: the first render measures fallback-font
+// widths, where the row may not overflow yet, clamping the scroll to 0.
+function navNudge() {
+  const links = document.querySelector('.nav-links');
+  const act = links?.querySelector('.active');
+  if (links && act) links.scrollLeft = Math.max(0, act.offsetLeft + act.offsetWidth - links.clientWidth + 18);
+}
+document.fonts?.ready.then(navNudge);
 
 // ===========================================================================
 // event delegation (bound once; survives re-renders)

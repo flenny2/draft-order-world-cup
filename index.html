@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>World Cup Fantasy — Draft Order</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>" />
   <!-- Type: Anton (jersey display), Hanken Grotesk (text), Space Mono (data/ticker).
@@ -15,12 +15,16 @@
     <header class="site-header">
       <p class="eyebrow">2026 World Cup · Fantasy</p>
       <h1 class="wordmark">Draft&nbsp;<em>Order.</em></h1>
+      <!-- Static on purpose: app.js handles [data-act] via document-level delegation,
+           so this works without being re-rendered. -->
+      <button data-act="theme" class="icon-btn theme-corner" title="Switch day / night theme" aria-label="Switch theme">◐</button>
     </header>
     <!-- Rendered by app.js from engine output. No ruleset logic lives in the DOM. -->
     <div id="view"></div>
     <footer class="site-footer">
       <p id="last-updated"></p>
       <p class="phase-note">Scores sync live — no refresh needed.</p>
+      <p class="foot-admin"><a href="#admin">Commissioner sign-in</a></p>
     </footer>
   </main>
   <script type="module" src="app.js"></script>

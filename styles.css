@@ -85,12 +85,15 @@ body {
   font-family: var(--font-body);
   font-size: 16px; line-height: 1.55;
   color: var(--ground-ink);
-  background:
-    radial-gradient(120% 70% at 50% -8%, var(--ground-2) 0%, var(--ground) 58%) fixed,
-    var(--ground);
+  background: var(--ground);
   -webkit-text-size-adjust: 100%;
 }
-#app { max-width: 660px; margin: 0 auto; padding: 14px 14px 44px; }
+/* the album glow — a fixed layer (background-attachment: fixed is a no-op on iOS Safari) */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(120% 70% at 50% -8%, var(--ground-2) 0%, var(--ground) 58%); }
+/* safe-area padding: keep content clear of the notch (landscape) + home indicator */
+#app { max-width: 660px; margin: 0 auto;
+  padding: 14px max(14px, env(safe-area-inset-right)) calc(44px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
 a { color: var(--gold-ink); text-decoration: none; }
 a:hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
@@ -105,17 +108,33 @@ a:hover { text-decoration: underline; }
 .flag-tbd { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
 
 /* --- poster masthead --- */
-.site-header { text-align: center; padding: 12px 2px 4px; }
+.site-header { position: relative; text-align: center; padding: 12px 2px 4px; }
+/* theme toggle — a device preference, so it lives up here, not in the nav */
+.theme-corner { position: absolute; right: 0; top: 8px; width: 36px; height: 36px; padding: 0;
+  border-radius: 50%; display: grid; place-items: center; font-size: 1.05rem; }
 .eyebrow { margin: 0; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
 .wordmark { margin: 6px 0 0; font-family: var(--font-display); font-size: clamp(2.7rem, 13vw, 4rem); line-height: 0.86; font-weight: 400; letter-spacing: 0.01em; text-transform: uppercase; color: var(--ground-ink); }
 .wordmark em { font-style: normal; color: var(--gold); }
 
-/* --- nav --- */
-.nav { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; border-bottom: 1px solid var(--ground-line); }
-.nav-links { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-bottom: 8px; }
-.nav-links a { font-family: var(--font-heading); color: var(--ground-mut); text-decoration: none; font-size: 0.82rem; padding-bottom: 6px; border-bottom: 2px solid transparent; }
-.nav-links a.active { color: var(--ground-ink); border-bottom-color: var(--gold); font-weight: 700; }
-.nav-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* --- nav — programme index tabs -----------------------------------------
+   One scrollable row; the page you're on is a raised cream tab joined to the
+   content below. The 2px shelf is drawn on .nav (::before, painted UNDER the
+   tabs) rather than as a border on the scroller — overflow would clip any
+   child trying to overlap the scroller's own border. Inactive tabs are
+   transparent so the shelf shows through; the active tab's cream fill covers
+   it, which is what makes it read as attached. The right-edge mask only bites
+   when a sixth (Admin) tab overflows — with five tabs there's nothing there. */
+.nav { position: relative; margin: 16px 0 12px; }
+.nav::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--ground-line); }
+.nav-links { display: flex; align-items: flex-end; gap: 5px; overflow-x: auto; padding: 0 18px 0 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links a { flex: none; font-family: var(--font-heading); font-size: 0.8rem; color: var(--ground-mut);
+  padding: 10px 10px 9px; border-radius: 9px 9px 0 0; border: 1px solid transparent; border-bottom: 0; }
+.nav-links a:hover { color: var(--ground-ink); text-decoration: none; }
+.nav-links a.active { background: var(--card); color: var(--ink); font-weight: 700; border-color: var(--ground-line); }
 .icon-btn { background: transparent; border: 1px solid var(--ground-line); border-radius: 8px; padding: 3px 8px; cursor: pointer; font-size: 0.9rem; color: var(--ground-ink); }
 .icon-btn:hover { border-color: var(--gold); }
 .link-btn { background: none; border: none; color: var(--gold); cursor: pointer; font-size: 0.8rem; font-family: var(--font-body); }
@@ -384,7 +403,7 @@ a:hover { text-decoration: underline; }
 button.btn-secondary, button.btn-danger { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font-size: 0.82rem; font-family: var(--font-body); }
 button.btn-secondary:hover { border-color: var(--gold); }
 button.btn-danger { color: var(--coral-ink); border-color: color-mix(in srgb, var(--coral) 45%, var(--line)); }
-.save-status { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 999; max-width: min(92vw, 620px); padding: 9px 14px; border-radius: var(--radius-sm); font-size: 0.84rem; box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }
+.save-status { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 999; max-width: min(92vw, 620px); padding: 9px 14px; border-radius: var(--radius-sm); font-size: 0.84rem; box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }
 .save-status.error { background: var(--coral-tint); color: var(--coral-ink); border: 1px solid color-mix(in srgb, var(--coral) 40%, var(--line)); }
 .save-status.saving { background: var(--gold-tint); color: var(--gold-ink); border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line)); }
 .issues { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
@@ -425,7 +444,8 @@ button.btn-danger { color: var(--coral-ink); border-color: color-mix(in srgb, va
 .signin h2 { color: var(--ground-ink); }
 .signin button { padding: 10px; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); font-weight: 700; cursor: pointer; font-family: var(--font-body); }
 .signin-err { color: var(--coral); font-size: 0.82rem; min-height: 1em; }
-select, input[type="number"], input[type="email"], input[type="password"], input[type="text"], input[type="datetime-local"] { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 8px; font-size: 0.88rem; min-width: 0; font-family: var(--font-body); }
+/* 16px minimum on every control — anything smaller makes iOS Safari zoom the page on focus */
+select, input[type="number"], input[type="email"], input[type="password"], input[type="text"], input[type="datetime-local"] { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 8px; font-size: 1rem; min-width: 0; font-family: var(--font-body); }
 
 /* --- celebration --- */
 .confetti-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9999; }
@@ -435,6 +455,8 @@ select, input[type="number"], input[type="email"], input[type="password"], input
 /* --- footer --- */
 .site-footer { margin-top: 28px; text-align: center; color: var(--ground-mut); font-size: 0.76rem; }
 .phase-note { opacity: 0.75; }
+.foot-admin { margin-top: 10px; }
+.foot-admin a { color: var(--ground-mut); font-size: 0.72rem; text-decoration: underline; text-underline-offset: 2px; }
 #last-updated { margin-bottom: 4px; font-family: var(--font-mono); }
 
 @media (prefers-reduced-motion: reduce) {
