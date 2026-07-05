@@ -288,70 +288,67 @@ function matchdayWire(state) {
     return computeDraftOrder({ ...state, matches: resolveBracket(ms, bracketTopology), includeProvisional: true }).picks;
   };
 
-  // Open games: two engine runs each, read by both owners.
-  const open = slate.filter((m) => m.status !== 'final');
-  const rows = new Map(); // match id -> [{ o, team, otherTeam, mine, theirs, pW, pL }]
-  for (const m of open) {
-    const ordA = pickIf(m, m.teamA), ordB = pickIf(m, m.teamB);
-    const r = [];
-    for (const t of [m.teamA, m.teamB]) {
-      const o = mbt.get(t);
-      if (!o) continue;
-      const isA = t === m.teamA;
-      const pW = pickOf(isA ? ordA : ordB, o.id), pL = pickOf(isA ? ordB : ordA, o.id);
-      if (pW == null || pL == null) continue;
-      r.push({ o, team: tm.get(t), otherTeam: tm.get(isA ? m.teamB : m.teamA),
-        mine: isA ? (m.scoreA ?? 0) : (m.scoreB ?? 0), theirs: isA ? (m.scoreB ?? 0) : (m.scoreA ?? 0), pW, pL });
-    }
-    rows.set(m.id, r);
-  }
-
   const gdTxt = (gd) => `GD ${gd > 0 ? '+' : gd < 0 ? '−' : ''}${Math.abs(gd)}`;
-  // A win only EARNS a pick in the Final and the 3rd-place game (one match =
-  // one finish). Everywhere else a win means "still alive" — say that, so
-  // leaguemates who skimmed the rules aren't promised a number a win can't
-  // guarantee. "for now" flags every number that can still move; "locked in"
-  // uses the engine's own lock flag.
-  const NEXT_ROUND = { R16: 'the quarterfinals', QF: 'the semifinals', SF: 'the final' };
+  // Only lines that carry real news get printed (Dylan: readability, visibility,
+  // clear understanding — if there's nothing interesting to say, say nothing):
+  //   scheduled  → just whose teams are in the game (win = alive is obvious, and
+  //                a hypothetical loser's exact pick isn't a promise tiebreaks
+  //                let us make)
+  //   live       → only owners whose team is OUT as it stands, with the same
+  //                provisional number the ladder shows right now (real score,
+  //                nothing invented); leading or level = no news
+  //   full-time  → only the eliminated owner (their band is now set; the number
+  //                stays "for now" until it locks) — a winner simply stays alive
+  // The Final and 3rd-place game are the exception: one match = one finish, so
+  // win/loss numbers are exact there and worth stating up front.
   const FINISH = { Final: ['champion', 'runner-up'], '3rd': ['third place', 'fourth place'] };
   const stakeLines = (m) => {
     const exact = !!FINISH[m.round];
+    const owners = [m.teamA, m.teamB].map((t) => ({ t, o: mbt.get(t) })).filter((x) => x.o);
+    if (!owners.length) return '';
+    const pkOf = (o) => current.find((x) => x.member.id === o.id);
+    const name = (t) => esc(tm.get(t)?.name ?? '');
     const out = [];
     if (m.status === 'final') {
       const wl = matchWinnerLoser(m);
-      for (const t of [m.teamA, m.teamB]) {
-        const o = mbt.get(t);
-        const pk = o ? current.find((x) => x.member.id === o.id) : null;
-        if (!wl || !o || !pk) continue;
+      for (const { t, o } of owners) {
+        const pk = pkOf(o);
+        if (!wl || !pk) continue;
         const tail = pk.locked ? `pick <strong>${pk.pickNumber}</strong>, locked in` : `pick <strong>${pk.pickNumber}</strong> for now`;
-        if (wl.winner === t) {
-          const lead = exact ? `${FINISH[m.round][0]} — ` : `through to ${NEXT_ROUND[m.round]} — `;
-          out.push(`<div class="wi-line good"><strong>${esc(o.name)}</strong>: ${lead}${tail}</div>`);
-        } else if (exact) {
-          out.push(`<div class="wi-line bad"><strong>${esc(o.name)}</strong>: ${FINISH[m.round][1]} — ${tail}</div>`);
-        } else {
+        if (exact) out.push(`<div class="wi-line ${wl.winner === t ? 'good' : 'bad'}"><strong>${esc(o.name)}</strong> (${name(t)}): ${FINISH[m.round][wl.winner === t ? 0 : 1]} — ${tail}</div>`);
+        else if (wl.loser === t) {
           const gd = t === m.teamA ? (m.scoreA ?? 0) - (m.scoreB ?? 0) : (m.scoreB ?? 0) - (m.scoreA ?? 0);
           out.push(m.decidedByPens
-            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out on pens (counts as a draw, ${gdTxt(gd)}) — ${tail}</div>`
-            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong>: out (${gdTxt(gd)}) — ${tail}</div>`);
+            ? `<div class="wi-line bad"><strong>${esc(o.name)}</strong> (${name(t)}): out on pens — counts as a draw, ${gdTxt(gd)} — ${tail}</div>`
+            : `<div class="wi-line bad"><strong>${esc(o.name)}</strong> (${name(t)}): out, ${gdTxt(gd)} — ${tail}</div>`);
         }
       }
-      return out.join('');
-    }
-    for (const r of rows.get(m.id) ?? []) {
-      let txt;
-      if (r.pW === r.pL) txt = `pick <strong>${r.pW}</strong> either way for now`;
-      else if (exact) { // Final / 3rd place: this one result IS the finish
-        if (m.status !== 'in_progress') txt = `pick <strong>${r.pW}</strong> with a win · pick <strong>${r.pL}</strong> with a loss`;
-        else if (r.mine === r.theirs) txt = `level — pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win · pick <strong>${r.pL}</strong> if not`;
-        else if (r.mine > r.theirs) txt = `pick <strong>${r.pW}</strong> if this score holds · pick <strong>${r.pL}</strong> if ${esc(r.otherTeam.name)} win`;
-        else txt = `pick <strong>${r.pL}</strong> if this score holds · pick <strong>${r.pW}</strong> if ${esc(r.team.name)} win`;
+    } else if (exact) {
+      // the tournament's only hypotheticals — two engine runs, two matches, exact
+      const ordA = pickIf(m, m.teamA), ordB = pickIf(m, m.teamB);
+      for (const { t, o } of owners) {
+        const pW = pickOf(t === m.teamA ? ordA : ordB, o.id), pL = pickOf(t === m.teamA ? ordB : ordA, o.id);
+        if (pW == null || pL == null) continue;
+        const mine = t === m.teamA ? (m.scoreA ?? 0) : (m.scoreB ?? 0);
+        const theirs = t === m.teamA ? (m.scoreB ?? 0) : (m.scoreA ?? 0);
+        const txt = m.status !== 'in_progress' || mine === theirs
+          ? `pick <strong>${pW}</strong> with a win · pick <strong>${pL}</strong> with a loss`
+          : mine > theirs
+            ? `pick <strong>${pW}</strong> if this score holds · pick <strong>${pL}</strong> if ${name(t === m.teamA ? m.teamB : m.teamA)} win`
+            : `pick <strong>${pL}</strong> if this score holds · pick <strong>${pW}</strong> if ${name(t)} win`;
+        out.push(`<div class="wi-line"><strong>${esc(o.name)}</strong> (${name(t)}): ${txt}</div>`);
       }
-      else if (m.status !== 'in_progress') txt = `still alive with a win (pick <strong>${r.pW}</strong> for now) · out with a loss (pick <strong>${r.pL}</strong>)`;
-      else if (r.mine === r.theirs) txt = `level — still alive with a win (pick <strong>${r.pW}</strong> for now), out with a loss (pick <strong>${r.pL}</strong>)`;
-      else if (r.mine > r.theirs) txt = `through as it stands — pick <strong>${r.pW}</strong> for now · out if it flips (pick <strong>${r.pL}</strong>)`;
-      else txt = `out as it stands (pick <strong>${r.pL}</strong>) · still alive if ${esc(r.team.name)} come back (pick <strong>${r.pW}</strong>)`;
-      out.push(`<div class="wi-line"><strong>${esc(r.o.name)}</strong>: ${txt}</div>`);
+    } else if (m.status === 'in_progress') {
+      for (const { t, o } of owners) {
+        const mine = t === m.teamA ? (m.scoreA ?? 0) : (m.scoreB ?? 0);
+        const theirs = t === m.teamA ? (m.scoreB ?? 0) : (m.scoreA ?? 0);
+        const pk = pkOf(o);
+        if (mine >= theirs || !pk) continue; // leading or level: no news yet
+        out.push(`<div class="wi-line bad"><strong>${esc(o.name)}</strong> (${name(t)}): out as it stands — pick <strong>${pk.pickNumber}</strong> for now</div>`);
+      }
+    } else {
+      // scheduled: visibility only — whose teams are on the line today
+      out.push(`<div class="wi-line">${owners.map(({ t, o }) => `<strong>${esc(o.name)}</strong>’s ${name(t)}`).join(' · ')}</div>`);
     }
     return out.join('');
   };
