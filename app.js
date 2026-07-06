@@ -830,8 +830,8 @@ function renderHelp(state) {
     <p class="prose">Only the 12 drawn teams are ranked — unassigned teams are skipped and everyone below
       slides up.</p>
 
-    <h2 class="law-head"><span class="law-no">2</span>Tiebreakers — same band only</h2>
-    <p class="prose">Two teams in the same band are ordered by, in order:
+    <h2 class="law-head"><span class="law-no">2</span>Tiebreakers — same exit round only</h2>
+    <p class="prose">Two teams knocked out in the same round are ordered by, in order:
       <strong>1)</strong> goal difference in their elimination match, <strong>2)</strong> goals scored in it,
       <strong>3)</strong> their tiebreak number (a distinct 1–12 drawn for everyone, lower = better).</p>
     <div class="worked">
