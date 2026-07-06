@@ -270,7 +270,7 @@ function meBar(state) {
   const teamBtn = team ? teamTap(team, `${flag(team)} <span class="tl">${esc(team.name)}</span>`) : '';
   const standing = !team ? 'not assigned yet'
     : !mine ? teamBtn
-    : `${teamBtn} · currently pick ${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
+    : `${teamBtn} · currently pick&nbsp;${mine.pickNumber} ${mine.locked ? '(locked)' : mine.alive ? '(still alive)' : '(if it stands)'}`;
   return `<div class="me-bar mine">
     <span>You're ${memberTap(me, `<strong>${esc(me.name)}</strong>`)} — ${standing}</span>
     <button data-act="clearme" class="link-btn">change</button>

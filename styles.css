@@ -142,9 +142,14 @@ a:hover { text-decoration: underline; }
 
 /* --- find my team --- */
 .me-bar { display: flex; align-items: center; gap: 8px; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 12px; font-size: 0.85rem; }
-.me-bar.mine { border-color: var(--gold); }
-.me-bar .flag { margin-right: 2px; }
+.me-bar.mine { border-color: var(--gold); flex-wrap: wrap; row-gap: 2px; }
+/* the one PROSE context a tapcard sits in: inline-flex baselines on the flag img
+   (its bottom edge), riding the name above the sentence baseline — go inline so
+   the name sits ON the baseline, and size the flag to the text like everywhere else */
+.me-bar .tapcard { display: inline; }
+.me-bar .flag { width: 1.2em; height: 1.2em; margin-right: 4px; vertical-align: -0.22em; }
 .me-bar select { margin-left: auto; }
+.me-bar.mine > span { flex: 1 1 100%; }
 .me-bar .link-btn { margin-left: auto; color: var(--gold-ink); }
 
 /* --- status line --- */
