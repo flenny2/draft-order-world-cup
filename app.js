@@ -810,7 +810,6 @@ function renderHelp(state) {
     ['band-qf_losers', '4', 'QF losers', 'GD, then goals, then tiebreak number'],
     ['band-r16_losers', '8', 'R16 losers', 'GD, then goals, then tiebreak number'],
   ];
-  const lockedDate = esc(state.meta?.rulesLockedDate ?? '—');
   view().innerHTML = `
     ${nav()}
     <div class="prog-mast">
@@ -844,17 +843,7 @@ function renderHelp(state) {
       <p class="wx-freq">Not a rare wrinkle: in a 10,000-tournament simulation, a shootout loser out-picked a
         regulation loser in about half of them.</p>
     </div>
-
-    <h2 class="law-head"><span class="law-no">3</span>Trust</h2>
-    <div class="trust-card">
-      <div class="stamp-row">
-        <span class="ink-stamp">Rules locked ${lockedDate}</span>
-        <span class="ink-stamp">random.org draw</span>
-        <span class="ink-stamp">Same results, same order</span>
-      </div>
-      <p>Rules were locked <strong>before the draw</strong>, and the order is always recomputed from
-        results — never typed in by hand.</p>
-    </div>`;
+`;
 }
 
 // ===========================================================================

@@ -418,12 +418,6 @@ a:hover { text-decoration: underline; }
 .wx-gd.win { color: var(--green-ink); font-weight: 700; }
 .wx-freq { color: var(--mut); font-size: 0.8rem; margin-bottom: 0; border-top: 1px dashed var(--line); padding-top: 8px; }
 
-.trust-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; font-size: 0.88rem; }
-.trust-card p { margin: 10px 0 0; }
-.stamp-row { display: flex; flex-wrap: wrap; gap: 10px 14px; padding: 4px 0 2px; }
-.ink-stamp { font-family: var(--font-mono); font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green-ink); border: 2px solid currentColor; border-radius: 6px; padding: 5px 10px; transform: rotate(-2deg); }
-.ink-stamp:nth-child(2) { transform: rotate(1.4deg); }
-.ink-stamp:nth-child(3) { transform: rotate(-0.8deg); }
 
 /* --- admin --- */
 .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
