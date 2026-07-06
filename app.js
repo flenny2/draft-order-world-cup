@@ -150,8 +150,7 @@ function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
 function orderBlock(state, mode) {
   const { picks } = computeDraftOrder({ ...state, includeProvisional: mode === 'projected' });
   if (picks.length === 0) {
-    return `<div class="empty">The draw hasn't been entered yet. Once the 12 teams are assigned in
-      <a href="#admin">admin</a>, the order appears here and updates live as results come in.</div>`;
+    return `<div class="empty">The draw hasn't been entered yet.</div>`;
   }
   return `<div class="picks">${picks.map(pickRow).join('')}</div>`;
 }
@@ -259,7 +258,6 @@ function meBar(state) {
   const me = state.members.find((x) => x.id === meId);
   if (!me) {
     return `<div class="me-bar">
-      <span>Find your pick:</span>
       <select data-act="setme" aria-label="Find your name">
         <option value="">choose your name…</option>
         ${state.members.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')}
@@ -437,8 +435,7 @@ function renderOrder(state) {
 
   const body = picks.length
     ? `<div class="picks ladder">${picks.map((p) => pickRow(p, { newlyLocked })).join('')}</div>`
-    : `<div class="empty">The draw hasn't been entered yet. Once the 12 teams are assigned in
-        <a href="#admin">admin</a>, the order appears here and updates live as results come in.</div>`;
+    : `<div class="empty">The draw hasn't been entered yet.</div>`;
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
@@ -449,7 +446,7 @@ function renderOrder(state) {
     ${picks.length ? matchdayWire(state) : ''}
     ${controls}
     ${body}
-    <h2 class="section-title">Out of play — ${unassigned.length} unassigned</h2>
+    <h2 class="section-title">Out of play</h2>
     <div class="unassigned">
       ${unassigned.map((t) => `<span class="chip">${teamTap(t, `${flag(t)} <span class="tl">${esc(t.name)}</span>`)}</span>`).join('') || '<span class="chip">—</span>'}
     </div>
@@ -466,7 +463,7 @@ function renderOrder(state) {
 // The "hot ticket" marquee: the live match (score) or the next kickoff (countdown).
 function featuredNext(state) {
   const next = nextMatch(state.matches, Date.now());
-  if (!next) return `<div class="marquee done">Tournament complete — the order is final.</div>`;
+  if (!next) return `<div class="marquee done">Tournament complete.</div>`;
 
   const tm = teamMap(state);
   const teams = `${teamLabel(tm.get(next.teamA))} <span class="mq-v">v</span> ${teamLabel(tm.get(next.teamB))}`;
@@ -528,17 +525,18 @@ function scheduleTicket(m, state) {
 
 function renderSchedule(state) {
   const { groups, undated } = groupByDay(state.matches);
-  const band = (label, n) => `<div class="day-band"><span class="db-day">${label}</span><span class="db-rule"></span><span class="db-count">${n} ${n === 1 ? 'match' : 'matches'}</span></div>`;
-  const dayBlock = (g) => `
-    ${band(esc(g.day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })), g.items.length)}
+  // "· local time" rides the FIRST band only — the one place the (unshowable)
+  // timezone fact still needs words, folded where the eye already is.
+  const band = (label, n, tz) => `<div class="day-band"><span class="db-day">${label}</span><span class="db-rule"></span><span class="db-count">${n} ${n === 1 ? 'match' : 'matches'}${tz ? ' · local time' : ''}</span></div>`;
+  const dayBlock = (g, i) => `
+    ${band(esc(g.day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })), g.items.length, i === 0)}
     <div class="ticket-list">${g.items.map((m) => scheduleTicket(m, state)).join('')}</div>`;
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
     ${featuredNext(state)}
-    <p class="tz-note">Kickoff times shown in your local timezone.</p>
     ${groups.map(dayBlock).join('')}
-    ${undated.length ? `${band('Times TBD', undated.length)}<div class="ticket-list">${undated.map((m) => scheduleTicket(m, state)).join('')}</div>` : ''}`;
+    ${undated.length ? `${band('Times TBD', undated.length, groups.length === 0)}<div class="ticket-list">${undated.map((m) => scheduleTicket(m, state)).join('')}</div>` : ''}`;
   startTick();
 }
 
@@ -674,7 +672,7 @@ function renderAdmin(state) {
     view().innerHTML = `${nav()}
       <form class="signin" data-signin>
         <h2>Admin sign in</h2>
-        <p class="hint">Commissioner sign-in for entering results. Everything else on the site is public — leaguemates never need an account.</p>
+        <p class="hint">Everything else on the site is public — leaguemates never need an account.</p>
         <input type="email" data-field="email" placeholder="email" autocomplete="username" />
         <input type="password" data-field="password" placeholder="password" autocomplete="current-password" />
         <button type="button" data-act="signin">Sign in</button>
@@ -707,7 +705,7 @@ function renderAdmin(state) {
         <button data-act="copy-update" class="btn-secondary">Copy</button>
         <button data-act="mark-sent" class="btn-secondary">Mark as sent (reset "since last update")</button>
       </div>
-      <p class="hint">Plain text, no formatting — ready to paste. "Mark as sent" snapshots the current order so the next update only lists what changed after it.</p>
+      <p class="hint">"Mark as sent" snapshots the current order so the next update only lists what changed after it.</p>
     </div>
     <h2 class="section-title">Live preview (what the public sees)</h2>
     ${orderBlock(state, 'projected')}`;
@@ -787,12 +785,10 @@ function renderWhatIf(state, moved) {
     ${editable.length ? `<div class="coupon">
       <div class="coupon-head">
         <span class="coupon-no">Coupon</span>
-        <span class="punches" aria-hidden="true">${punches}</span>
+        <span class="punches" role="img" aria-label="Marked ${marked} of ${editable.length}">${punches}</span>
         <button data-act="reset-preds" class="btn-secondary">Clear coupon</button>
       </div>
-      <p class="coupon-note"><strong>Marked ${marked} of ${editable.length}.</strong>
-        Tap who you think advances — the order updates below. Nothing here is saved or shared.
-        You pick winners, not scores, so if two teams go out in the same round their tiebreak number decides who picks first.</p>
+      <p class="coupon-note">Nothing here is saved or shared · <a href="#help">how ties split</a></p>
     </div>` : ''}
     ${editable.length ? `<div class="pred-list">${editable.map((m) => explorerMatchCard(m, state, predictions)).join('')}</div>`
       : `<div class="empty">Every match is final — there's nothing left to imagine.</div>`}
@@ -823,8 +819,7 @@ function renderHelp(state) {
 
     <h2 class="law-head"><span class="law-no">1</span>The finish ladder</h2>
     <p class="prose">Each of the 12 members is randomly assigned one Round-of-16 team. Your draft pick is
-      <strong>how far your team goes</strong> — the further, the earlier you pick. Best finish = pick 1.
-      Band colours match the Order page.</p>
+      <strong>how far your team goes</strong> — the further, the earlier you pick.</p>
     <div class="finish-ladder">
       <div class="ladder-cap">← better pick</div>
       ${ladder.map(([cls, count, n, d]) => `<div class="ladder-row ${cls}">
@@ -832,24 +827,22 @@ function renderHelp(state) {
         <span class="lad-n">${n}</span><span class="lad-d">${d}</span></div>`).join('')}
       <div class="ladder-cap">worse pick →</div>
     </div>
-    <p class="prose">The top four finishes are each settled by one match (the Final and the 3rd-place game),
-      so they can never tie. The two <em>loser bands</em> can have ties — that's where tiebreakers come in.
-      Only the 12 drawn teams are ranked; the 4 unassigned teams are skipped, and everyone below slides up
-      (no gaps in 1–12).</p>
+    <p class="prose">Only the 12 drawn teams are ranked — unassigned teams are skipped and everyone below
+      slides up.</p>
 
     <h2 class="law-head"><span class="law-no">2</span>Tiebreakers — same band only</h2>
     <p class="prose">Two teams in the same band are ordered by, in order:
       <strong>1)</strong> goal difference in their elimination match, <strong>2)</strong> goals scored in it,
       <strong>3)</strong> their tiebreak number (a distinct 1–12 drawn for everyone, lower = better).</p>
     <div class="worked">
-      <div class="worked-title">Worked example — the penalty wrinkle</div>
-      <p>Both teams lost in the Round of 16. A shootout counts as a draw, so Team B's recorded score is 0–0:</p>
+      <div class="worked-title">Worked example — two R16 losers, one shootout</div>
+      <p>A shootout counts as a draw, so Team B's recorded score is 0–0:</p>
       <div class="wx-row"><span class="wx-team">Team A</span><span class="wx-score">1–2</span><span class="wx-note">lost in normal time</span><span class="wx-gd">GD −1</span></div>
       <div class="wx-row"><span class="wx-team">Team B</span><span class="wx-score">0–0</span><span class="wx-note">lost the shootout</span><span class="wx-gd win">GD 0</span></div>
       <p>Higher GD gets the better pick, so <strong>Team B picks ahead of Team A</strong> — even though it
-        "lost" its shootout. If two teams tie on GD <em>and</em> goals scored, the lower tiebreak number wins.</p>
+        "lost" its shootout.</p>
       <p class="wx-freq">Not a rare wrinkle: in a 10,000-tournament simulation, a shootout loser out-picked a
-        regulation loser in about half of them. Expect it.</p>
+        regulation loser in about half of them.</p>
     </div>
 
     <h2 class="law-head"><span class="law-no">3</span>Trust</h2>
@@ -859,9 +852,8 @@ function renderHelp(state) {
         <span class="ink-stamp">random.org draw</span>
         <span class="ink-stamp">Same results, same order</span>
       </div>
-      <p>Rules were locked on <strong>${lockedDate}</strong>, before the draw.
-        The draw is done on random.org, and every team's tiebreak number is public. Same results always produce
-        the same order — the compute is deterministic and verified against an invariant test suite.</p>
+      <p>Rules were locked <strong>before the draw</strong>, and the order is always recomputed from
+        results — never typed in by hand.</p>
     </div>`;
 }
 

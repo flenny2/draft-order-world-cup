@@ -268,8 +268,6 @@ a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: no-preference) { .livedot { animation: livepulse 1.4s infinite; } }
 @keyframes livepulse { 50% { opacity: 0.3; } }
 
-.tz-note { text-align: center; color: var(--ground-mut); font-size: 0.74rem; margin: 6px 0 14px; }
-
 /* matchday band — a dated divider with the game count */
 .day-band { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; }
 .db-day { font-family: var(--font-heading); font-weight: 700; font-size: 1rem; color: var(--ground-ink); white-space: nowrap; }
@@ -365,7 +363,6 @@ a:hover { text-decoration: underline; }
 .punch { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--mut); }
 .punch.hit { border-color: var(--gold-ink); background: radial-gradient(circle, var(--card) 0 2.5px, var(--gold) 2.5px); }
 .coupon-note { margin: 6px 0 0; font-size: 0.78rem; color: var(--mut); }
-.coupon-note strong { color: var(--ink); }
 
 .pred-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .pred-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
@@ -485,7 +482,6 @@ select, input[type="number"], input[type="email"], input[type="password"], input
 
 /* --- footer --- */
 .site-footer { margin-top: 28px; text-align: center; color: var(--ground-mut); font-size: 0.76rem; }
-.phase-note { opacity: 0.75; }
 .foot-admin { margin-top: 10px; }
 .foot-admin a { color: var(--ground-mut); font-size: 0.72rem; text-decoration: underline; text-underline-offset: 2px; }
 #last-updated { margin-bottom: 4px; font-family: var(--font-mono); }
