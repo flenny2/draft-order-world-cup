@@ -20,8 +20,9 @@ pens-loser outranks a regulation loser. Full ruleset in [`claude.md`](./claude.m
 | File | Responsibility |
 |---|---|
 | `index.html` / `styles.css` | shell + styling (dark, mobile-first) |
-| `data.js` | **DATA** — the one editable place: teams, members, fixtures, bracket topology |
-| `engine.js` | **LOGIC** — pure ruleset → draft order. No DOM, no clock, no Firebase |
+| `data.js` | **DATA** — the men's-WC seed: teams, members, fixtures, bracket topology |
+| `tournament.js` | **DATA** — tournament profiles: knockout structure (`ruleset`), labels, seed. The active profile is chosen here |
+| `engine.js` | **LOGIC** — pure ruleset → draft order. No DOM, no clock, no Firebase; reads structure from a profile's `ruleset` (defaults to men's WC) |
 | `schedule.js` | pure time helpers (next match, countdown) — takes `now` explicitly |
 | `report.js` | pure plain-text league-update generator |
 | `store.js` | the Firebase boundary (Realtime DB + auth) — the only file that knows Firebase |
