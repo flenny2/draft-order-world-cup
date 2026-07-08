@@ -7,29 +7,26 @@
 //
 // Presentation reads this output and NEVER re-implements ruleset logic. If a rule
 // changes, it changes HERE. The canonical rules live in claude.md §THE RULESET.
+//
+// TOURNAMENT-SPECIFIC STRUCTURE lives in the active profile's `ruleset`
+// (tournament.js), NOT here: the finish bands and their order, which rounds map
+// to which bands, the lock dependencies, and the tiebreak-number range. This
+// module is pure LOGIC and knows nothing about a particular tournament — every
+// entry point takes a `ruleset`, defaulting to the men's World Cup so existing
+// callers (and the test suite) are unchanged.
 // =============================================================================
 
-// Finish bands, BEST → WORST. ALIVE = finish not yet determined; it sorts to the
-// TOP because a genuinely alive team can still finish anywhere up to champion.
-// SF_LOSER = lost a semifinal: guaranteed 3rd or 4th pending the 3rd-place game,
-// so it is NOT alive — it can no longer beat the finalists and must rank below
-// them (otherwise a champ/RU pick locked by the Final would be displaced when
-// the 3rd-place game resolves).
-export const BAND_RANK = {
-  ALIVE: 0,
-  CHAMPION: 1,
-  RUNNER_UP: 2,
-  SF_LOSER: 3,
-  THIRD: 4,
-  FOURTH: 5,
-  QF_LOSERS: 6,
-  R16_LOSERS: 7,
-};
+import { defaultRuleset } from './tournament.js';
 
-// The two bands where the ruleset tiebreaker (GD → GF → tiebreak number) applies.
-// A tiebreak comparison happens ONLY inside one of these, between two assigned
-// teams in the SAME band (invariant #2).
-const LOSER_BANDS = new Set(['QF_LOSERS', 'R16_LOSERS']);
+// Band → rank (BEST = lowest number), derived from the profile's band ORDER.
+// ALIVE is first because a genuinely alive team can still finish anywhere up to
+// champion; SF_LOSER sits below the finalists because, having lost a semi, it is
+// guaranteed 3rd/4th and can no longer beat them (so a champ/RU pick locked by
+// the Final isn't displaced when the 3rd-place game resolves).
+const bandRankOf = (ruleset) => Object.fromEntries(ruleset.bands.map((b, i) => [b, i]));
+
+// Back-compat: the men's-WC band ranking, previously hard-coded here.
+export const BAND_RANK = bandRankOf(defaultRuleset);
 
 // Teams with no member holding their id are out of play — derived, not stored,
 // so there is a single source of truth for "who's assigned".
@@ -98,36 +95,32 @@ export function matchWinnerLoser(match) {
 //  - SF     → loser SF_LOSER: it plays the 3rd-place game, so its exact finish
 //             (3rd or 4th) is still open — but it ranks below the finalists
 //             already. The 3rd-place result upgrades it to THIRD/FOURTH.
-// Anything never recorded as a loser/champion stays ALIVE.
-export function classifyTeams(teams, matches, { includeProvisional }) {
+// Anything never recorded as a loser/champion stays ALIVE. The round → band
+// mapping (and which side each round terminates) comes from the profile, so this
+// stays tournament-agnostic; match GD/GF is tracked ONLY for tiebreak bands
+// (every other band is single-match and can't tie).
+export function classifyTeams(teams, matches, { includeProvisional, ruleset = defaultRuleset }) {
+  const tiebreakBands = new Set(ruleset.tiebreakBands);
   const band = new Map();
   for (const t of teams) band.set(t.id, { band: 'ALIVE', matchGD: null, matchGF: null });
+
+  const assign = (teamId, bandName, gd, gf) =>
+    band.set(teamId, tiebreakBands.has(bandName)
+      ? { band: bandName, matchGD: gd, matchGF: gf }
+      : { band: bandName, matchGD: null, matchGF: null });
 
   for (const match of matches) {
     const r = matchOutcome(match, { includeProvisional });
     if (!r) continue;
-    switch (match.round) {
-      case 'R16':
-        band.set(r.loser, { band: 'R16_LOSERS', matchGD: r.loserGD, matchGF: r.loserGF });
-        break;
-      case 'QF':
-        band.set(r.loser, { band: 'QF_LOSERS', matchGD: r.loserGD, matchGF: r.loserGF });
-        break;
-      case 'SF': {
-        // Don't overwrite THIRD/FOURTH if the 3rd-place game was already
-        // processed — match array order must not affect the result.
-        const cur = band.get(r.loser);
-        if (!cur || cur.band === 'ALIVE') band.set(r.loser, { band: 'SF_LOSER', matchGD: null, matchGF: null });
-        break;
-      }
-      case '3rd':
-        band.set(r.winner, { band: 'THIRD', matchGD: null, matchGF: null });
-        band.set(r.loser, { band: 'FOURTH', matchGD: null, matchGF: null });
-        break;
-      case 'Final':
-        band.set(r.winner, { band: 'CHAMPION', matchGD: null, matchGF: null });
-        band.set(r.loser, { band: 'RUNNER_UP', matchGD: null, matchGF: null });
-        break;
+    const cfg = ruleset.rounds[match.round];
+    if (!cfg) continue; // a round the profile doesn't classify (e.g. a group stage)
+    if (cfg.winner) assign(r.winner, cfg.winner, null, null); // winners never sit in a tiebreak band
+    if (cfg.loser) {
+      // A `provisional` round's loser plays again (SF loser → 3rd-place game), so
+      // only band it while it's still ALIVE — never overwrite a THIRD/FOURTH the
+      // 3rd-place game already set (match array order must not affect the result).
+      if (cfg.provisional && band.get(r.loser)?.band !== 'ALIVE') continue;
+      assign(r.loser, cfg.loser, r.loserGD, r.loserGF);
     }
   }
   return band;
@@ -142,46 +135,40 @@ function roundDecided(matches, round) {
   const ms = matches.filter((m) => m.round === round);
   return ms.length > 0 && ms.every((m) => matchOutcome(m, { includeProvisional: false }) !== null);
 }
-// Rounds that must be decided for each band to lock. The band's own round fixes
-// its internal order; the EARLIER rounds are required too, because an undecided
-// earlier match leaves its teams ranked above the band, and its eventual loser
-// drops below — shifting the band's pick numbers. In normal chronology every
-// earlier round is already final, so this is exactly the ruleset's four lock
-// bullets; the extra requirements only bite on out-of-order data entry.
-// Champ/RU do NOT need the 3rd-place game: SF losers rank below RUNNER_UP
-// whether banded SF_LOSER or THIRD/FOURTH. A lower band can therefore still
-// lock BEFORE a higher one. Locked picks never move (invariant #5).
-const LOCK_NEEDS = {
-  CHAMPION: ['R16', 'QF', 'SF', 'Final'],
-  RUNNER_UP: ['R16', 'QF', 'SF', 'Final'],
-  THIRD: ['R16', 'QF', 'SF', '3rd'],
-  FOURTH: ['R16', 'QF', 'SF', '3rd'],
-  QF_LOSERS: ['R16', 'QF'],
-  R16_LOSERS: ['R16'],
-};
-function isBandLocked(bandName, matches) {
-  const needs = LOCK_NEEDS[bandName];
-  if (!needs) return false; // ALIVE and SF_LOSER (3rd-vs-4th still open) never lock
+// Which rounds must be decided for each band to lock comes from the profile
+// (ruleset.lockNeeds). The band's own round fixes its internal order; the EARLIER
+// rounds are required too, because an undecided earlier match leaves its teams
+// ranked above the band, and its eventual loser drops below — shifting the band's
+// pick numbers. A band not listed (ALIVE, SF_LOSER) never locks. Locked picks
+// never move (invariant #5).
+function isBandLocked(bandName, matches, ruleset) {
+  const needs = ruleset.lockNeeds[bandName];
+  if (!needs) return false;
   return needs.every((round) => roundDecided(matches, round));
 }
 
 // --- Ranking comparator ----------------------------------------------------
+// Built for a given ruleset (band rank + which bands take the GD/GF tiebreak).
 // Different bands → band rank decides (band ALWAYS dominates GD/GF; tiebreaks
 // never cross bands). Same loser band → ruleset tiebreak GD↓ GF↓ number↑. Other
 // same-band cases (ALIVE, or the single-team top bands) are ordered by tiebreak
 // number purely for a DETERMINISTIC, stable display — not a ruleset tiebreak.
-function compareEntries(a, b) {
-  if (BAND_RANK[a.band] !== BAND_RANK[b.band]) return BAND_RANK[a.band] - BAND_RANK[b.band];
-  if (LOSER_BANDS.has(a.band)) {
-    if (a.matchGD !== b.matchGD) return b.matchGD - a.matchGD; // higher (less negative) GD = better pick
-    if (a.matchGF !== b.matchGF) return b.matchGF - a.matchGF; // more goals scored = better pick
-  }
-  const tbA = a.tiebreakNumber ?? Infinity, tbB = b.tiebreakNumber ?? Infinity; // lower number = better pick
-  if (tbA !== tbB) return tbA - tbB;
-  // Total-order fallback for two missing numbers (a mid-draw-entry state that
-  // validate warns about): Infinity − Infinity is NaN, which sort treats as
-  // "equal", so without this the order would depend on the members-array order.
-  return a.member.id < b.member.id ? -1 : a.member.id > b.member.id ? 1 : 0;
+function makeCompareEntries(ruleset) {
+  const rank = bandRankOf(ruleset);
+  const tiebreakBands = new Set(ruleset.tiebreakBands);
+  return function compareEntries(a, b) {
+    if (rank[a.band] !== rank[b.band]) return rank[a.band] - rank[b.band];
+    if (tiebreakBands.has(a.band)) {
+      if (a.matchGD !== b.matchGD) return b.matchGD - a.matchGD; // higher (less negative) GD = better pick
+      if (a.matchGF !== b.matchGF) return b.matchGF - a.matchGF; // more goals scored = better pick
+    }
+    const tbA = a.tiebreakNumber ?? Infinity, tbB = b.tiebreakNumber ?? Infinity; // lower number = better pick
+    if (tbA !== tbB) return tbA - tbB;
+    // Total-order fallback for two missing numbers (a mid-draw-entry state that
+    // validate warns about): Infinity − Infinity is NaN, which sort treats as
+    // "equal", so without this the order would depend on the members-array order.
+    return a.member.id < b.member.id ? -1 : a.member.id > b.member.id ? 1 : 0;
+  };
 }
 
 // --- The one public entry point --------------------------------------------
@@ -195,10 +182,10 @@ function compareEntries(a, b) {
 //                                read `picks`, ignore `locked`. No store access here.
 // `locked` per pick is ALWAYS derived from SETTLED (final) results, so it means
 // "this exact pick can't change", independent of the provisional display.
-export function computeDraftOrder({ teams, members, matches, includeProvisional = true }) {
-  const settledBands = classifyTeams(teams, matches, { includeProvisional: false });
+export function computeDraftOrder({ teams, members, matches, includeProvisional = true, ruleset = defaultRuleset }) {
+  const settledBands = classifyTeams(teams, matches, { includeProvisional: false, ruleset });
   const displayBands = includeProvisional
-    ? classifyTeams(teams, matches, { includeProvisional: true })
+    ? classifyTeams(teams, matches, { includeProvisional: true, ruleset })
     : settledBands;
 
   const teamById = new Map(teams.map((t) => [t.id, t]));
@@ -218,7 +205,7 @@ export function computeDraftOrder({ teams, members, matches, includeProvisional 
       };
     });
 
-  entries.sort(compareEntries);
+  entries.sort(makeCompareEntries(ruleset));
 
   const picks = entries.map((e, i) => {
     // Lock is keyed off the SETTLED band: a team only locks via a final result,
@@ -234,7 +221,7 @@ export function computeDraftOrder({ teams, members, matches, includeProvisional 
       matchGF: e.matchGF,
       tiebreakNumber: e.tiebreakNumber,
       alive: e.band === 'ALIVE',
-      locked: isBandLocked(settledBand, matches),
+      locked: isBandLocked(settledBand, matches, ruleset),
     };
   });
 
@@ -272,16 +259,17 @@ export function resolveBracket(matches, topology) {
 // --- Data validation -------------------------------------------------------
 // Surfaces ruleset/data problems for the admin UI. Pure; returns [{level, msg}].
 // level 'error' = breaks the ruleset; 'warn' = probably a typo worth a look.
-export function validate({ members, matches }) {
+export function validate({ members, matches, ruleset = defaultRuleset }) {
   const issues = [];
   const assigned = members.filter((m) => m.teamId != null);
+  const max = ruleset.tiebreakMax;
 
-  // Tiebreak numbers must be distinct 1..12 among assigned teams (rule 8).
+  // Tiebreak numbers must be distinct 1..max among assigned teams (rule 8).
   const nums = assigned.map((m) => m.tiebreakNumber);
   if (nums.some((n) => n == null)) issues.push({ level: 'warn', msg: 'Some assigned members have no tiebreak number yet.' });
   const present = nums.filter((n) => n != null);
   if (new Set(present).size !== present.length) issues.push({ level: 'error', msg: 'Tiebreak numbers must be DISTINCT — there is a duplicate.' });
-  if (present.some((n) => n < 1 || n > 12)) issues.push({ level: 'warn', msg: 'Tiebreak numbers should be in the range 1–12.' });
+  if (present.some((n) => n < 1 || n > max)) issues.push({ level: 'warn', msg: `Tiebreak numbers should be in the range 1–${max}.` });
 
   // One team per member (no two members on the same team).
   const teamIds = assigned.map((m) => m.teamId);

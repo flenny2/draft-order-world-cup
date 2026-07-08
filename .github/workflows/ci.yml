@@ -16,6 +16,8 @@ jobs:
           node-version: 22
       - name: Invariant harness
         run: node engine.test.js
+      - name: Tournament profiles (characterization + swap)
+        run: node tournament.test.js
       - name: Simulation (fairness + process fuzz)
         run: node simulate.js
       - name: Poller planning functions
