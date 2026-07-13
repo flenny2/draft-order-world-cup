@@ -229,6 +229,11 @@ a:hover { text-decoration: underline; }
 .pick.top1 .pick-num { background: linear-gradient(135deg, #efd98a, #c6a24c 48%, #a07d2c 50%, #e6cf82); color: #3a2c07; }
 .pick.top1 { box-shadow: 0 6px 20px -9px rgb(198 162 76 / 0.6); }
 .pick.top1::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / 0.32) 50%, transparent 58%); }
+/* locked pick — the number block sits deeper than a live/provisional one, so a
+   locked position reads as locked on any band. Inset overlay (not filter) darkens
+   only the band colour, leaving the cream numeral crisp. :not(.top1) keeps pick 1
+   on its foil. */
+.pick.locked:not(.top1) .pick-num { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.26); }
 .pick.mine { outline: 2px solid var(--gold); outline-offset: -2px; }
 .pick-member { font-weight: 700; }
 .pick-member .you { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.06em; background: var(--coral); color: #fff; border-radius: 4px; padding: 1px 5px; vertical-align: middle; text-transform: uppercase; }

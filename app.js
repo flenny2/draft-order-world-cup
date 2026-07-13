@@ -121,6 +121,10 @@ function teamLabel(team) { return team ? teamTap(team, `${flag(team)} <span clas
 function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
   const top1 = p.pickNumber === 1 ? ' top1' : '';
   const aliveCls = p.alive ? ' alive' : '';
+  // A locked pick's number block sits visibly deeper (see .pick.locked in CSS) so
+  // locked positions read as locked regardless of their band colour. Hidden in the
+  // what-if explorer (hideLock) where lock flags are meaningless.
+  const lockedCls = !hideLock && p.locked ? ' locked' : '';
   const mineCls = p.member.id === meId ? ' mine' : '';
   const bandCls = ` band-${p.band.toLowerCase()}`; // colours the rung on the ladder
   const pulse = !hideLock && newlyLocked && newlyLocked.has(p.member.id) ? ' just-locked' : '';
@@ -135,7 +139,7 @@ function pickRow(p, { hideLock, newlyLocked, moved } = {}) {
     : p.alive ? '<span class="badge-alive">Alive</span>'
     : '<span class="badge-prov">If it stands</span>';
   return `
-    <div class="pick${top1}${aliveCls}${mineCls}${pulse}${movedCls}${bandCls}">
+    <div class="pick${top1}${aliveCls}${lockedCls}${mineCls}${pulse}${movedCls}${bandCls}">
       <div class="pick-num">${p.pickNumber}</div>
       <div class="pick-main">
         <div class="pick-member">${memberTap(p.member, `<span>${esc(p.member.name)}</span>`)}${mineCls ? ' <span class="you">you</span>' : ''} ${tb}</div>
