@@ -35,3 +35,32 @@ draft-order output under a live league. No push until the tournament is over.
 further profiles / profile-driven behaviour). They assume `engine.js` reads structure
 from `ruleset` and that new tournaments are data, not engine edits — don't collapse the
 layer back into the engine.
+
+---
+
+## 2026-07-12 — Profile contract validator + uniform `tools/validate` entrypoint
+
+**What changed.** Added `tournament-validate.js` (`validateProfile`) — a pure check that a
+profile's `ruleset` satisfies the things `engine.js` silently ASSUMES: `ALIVE` is the first
+band, every band a round names actually exists, a `provisional` round's losers get upgraded
+by a later round, `lockNeeds` only names genuinely-earlier rounds, and `tiebreakMax` covers
+the whole roster. Also added `tools/validate`, a shell entrypoint that runs the node test
+files directly.
+
+**Why.** This is the safety net UNDER the profile layer (see the entry above). Break one of
+those ruleset assumptions and the symptom is subtle runtime weirdness — a team stuck in the
+wrong band, picks that never lock, tiebreak numbers out of range — never a clear error. That
+is exactly the failure a non-expert adding a new profile can't diagnose, so the validator
+turns the assumptions into an explicit contract that fails LOUDLY. It backs the promise the
+`new-tournament` skill makes: "new tournament = add one profile file."
+
+**Honest limit.** The check is STRUCTURAL — the ruleset carries no bracket topology (that
+lives in `seed`), so the provisional-upgrade check relies on `rounds` being written in
+chronological order. It catches a provisional round with nothing after it; it is not a full
+bracket verifier.
+
+**Watch: two validation lists that can drift.** `tools/validate` runs FOUR suites
+(`engine`, `tournament`, `poller`, `tournament-validate`) because some agent sessions can't
+invoke `npm` but `node` always works — it is the fuller superset. `npm test` currently runs
+only the first three (it omits `tournament-validate.test.js`). Keep them in sync when you
+touch either; `tools/validate` is the authoritative "all green" gate.
