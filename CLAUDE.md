@@ -1,4 +1,23 @@
+<!-- ===========================================================================
+CLAUDE.md — World Cup Fantasy Draft Order Tool  ·  read every session
+status: LIVE — a 12-person league is running on the DEPLOYED build right now
+deploy-hold: DO NOT PUSH before 2026-07-19 (the Final). All work this window is
+             merged LOCAL-ONLY; a mid-tournament deploy can change live draft
+             output. See DECISIONS.md "Deploy tripwire".
+architecture: profile-driven — engine.js (pure LOGIC) reads a `ruleset` from
+              tournament.js (DATA); app.js is PRESENTATION. File map: README.md.
+canonical: THE RULESET section below is the spec; code conforms to it, not the
+           reverse.
+updated: 2026-07-13
+=========================================================================== -->
+
 # CLAUDE.md — World Cup Fantasy Draft Order Tool
+
+> ⚠️ **DEPLOY HOLD — no push before 2026-07-19.** A live 12-person league is on the
+> deployed build. Every change this window is merged **local-only**; a mid-tournament
+> deploy could change draft-order output under a running league. (The unattended queue
+> runner never pushes anyway.) The hold lifts after the Final — then the planned
+> generalization push (women's WC / Euros / UCL profiles) can go out.
 
 ## What this is
 A shareable, mobile-first web tool that ties a 12-person fantasy league's draft
@@ -10,6 +29,41 @@ The tool lives through four phases; the home screen should adapt to whichever is
 active: (1) Pre-draw — rules + hype, all placeholders; (2) The draw — teams assigned
 to members; (3) Tournament live — matches resolve, picks lock bottom-up, daily use;
 (4) Final — order locked, page becomes a record/recap.
+
+---
+
+## Current state — what's built (2026-07-13)
+The app is fully built and deployed; the sections below still read as the *spec* the
+code implements, but nothing here is greenfield anymore. Full file map: `README.md`.
+
+- **Profile-driven engine (the big architectural shift).** `engine.js` no longer
+  hard-codes the men's 2026 WC — it takes a `ruleset` (defaulting to the men's WC) and
+  stays pure LOGIC. All tournament STRUCTURE (finish bands + order, round→band map, lock
+  dependencies, tiebreak range) lives in `tournament.js` as a *profile*; `data.js` is
+  just the men's-WC seed. This is what makes "add the women's WC / Euros / UCL" a new
+  profile, not an engine edit. Rationale + guardrails: `DECISIONS.md` (2026-07-07) and
+  the `new-tournament` skill. **Naming trap:** `profiles.js` is unrelated sticker-card
+  facts; `tournament.js` is the tournament CONFIG — keep them separate.
+- **Profile contract validator.** `tournament-validate.js` (`validateProfile`) checks a
+  profile against the engine's silent assumptions so a malformed profile fails loudly,
+  not subtly. See `DECISIONS.md` (2026-07-12).
+- **Realtime store — built.** Firebase Realtime DB behind `store.js` (the only file that
+  knows Firebase); public read, admin-UID-gated writes. Config in code is not a secret.
+- **iMessage league-update generator — built.** `report.js`, pure plain-text, diffs
+  against a baseline snapshot for "what changed since last update".
+- **July UI passes (all LIVE).** Sticker cards v2 (flip cards: team profile front /
+  league-history back, the knockout run rendered live from `state.matches`) +
+  share-preview card (`og-card.png`); the **Matchday Wire** (neutral, news-only match
+  feed — only prints real changes); programme-tab nav + iOS fixes; Results-first admin;
+  Bracket wall-chart; Schedule ticket rail; What-if pools coupon; Help-as-programme;
+  locked picks darken their number block; the show-don't-tell prose trims.
+- **Live-scores poller — Phase A only (dry-run).** `scripts/poller.mjs` + the `poller.yml`
+  workflow map football-data's LIVE / EXTRA_TIME / PENALTY_SHOOTOUT statuses but **do not
+  write to the live store** — this is the v2 auto-fetch sitting *behind the score-input
+  boundary* (see Scope). Design + rollout: `AUTOMATION.md`, `PHASE-B-RUNBOOK.md`. (Those
+  docs reference Firebase JSON paths like `automation/enabled` — data paths, not files.)
+- **Validation.** `tools/validate` is the uniform entrypoint (runs the node test files
+  directly, since some sessions can't invoke `npm`). See `DECISIONS.md` (2026-07-12).
 
 ---
 
