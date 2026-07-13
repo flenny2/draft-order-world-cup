@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Uniform validation entrypoint (workspace convention, 2026-07-12).
+# Runs the node test files directly (equivalent to `npm test` + the validator's
+# own suite) — some agent sessions cannot invoke npm, node is always fine.
+set -e
+cd "$(dirname "$0")/.."
+node engine.test.js
+node tournament.test.js
+node poller.test.js
+node tournament-validate.test.js
+echo "VALIDATE PASS"
