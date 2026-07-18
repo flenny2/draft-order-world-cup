@@ -65,6 +65,13 @@ const setMe = (id) => { try { id ? localStorage.setItem(ME_KEY, id) : localStora
 const BASELINE_KEY = 'wcdraft.updateBaseline.v1';
 const getBaseline = () => { try { return JSON.parse(localStorage.getItem(BASELINE_KEY)); } catch { return null; } };
 const setBaseline = (snap) => { try { localStorage.setItem(BASELINE_KEY, JSON.stringify(snap)); } catch {} };
+
+// The finale confetti auto-fires ONCE per device (the plaque persists; its
+// trophy replays the burst on demand). If storage fails, the `celebrated`
+// module flag still limits it to once per page load.
+const FINALE_KEY = 'wcdraft.finaleSeen.v1';
+const finaleSeen = () => { try { return !!localStorage.getItem(FINALE_KEY); } catch { return false; } };
+const setFinaleSeen = () => { try { localStorage.setItem(FINALE_KEY, '1'); } catch {} };
 const publicUrl = () => location.href.split('#')[0];
 
 // Theme: 'day' (light — Dylan's design kit, the default) ⇄ 'night' (dark). Per device.
@@ -84,7 +91,7 @@ let tickTimer = null;
 let writeStatus = { pending: 0, error: null }; // last write outcome, from store.onWriteStatus
 let predictions = {}; // what-if explorer sandbox: matchId -> { winner } (never written to store)
 let prevLocked = new Set(); // member ids locked at last order render → drives the just-locked pulse
-let celebrated = false; // fire the final-locks celebration only once per completion
+let celebrated = false; // auto-fire the completion burst once per page load (FINALE_KEY gates per device)
 let summaryTeamId = null; // admin: which team's "2026 so far" text is being edited
 let summaryDraft = null; // admin: unsaved textarea text — survives the re-render a live score triggers
 
@@ -222,7 +229,7 @@ const PHASE = {
   predraw: { label: 'Pre-draw', cls: '' },
   draw: { label: 'Draw set', cls: '' },
   live: { label: 'Live', cls: 'live' },
-  final: { label: 'Final', cls: 'gold' },
+  final: { label: 'Order set', cls: 'gold' }, // every pick locked — the page is now the record
 };
 function phaseOf(state, picks) {
   if (state.members.filter((m) => m.teamId).length === 0) return 'predraw';
@@ -237,25 +244,67 @@ function trustStamps(state) {
     <span class="stamp">tiebreak numbers public</span>
   </div>`;
 }
-// One-time confetti when the whole order locks. Self-contained (no library),
-// cleans itself up, and respects reduced-motion.
+// The completion celebration — a foil-heavy confetti shower (DOM + CSS only,
+// no library; ~140 spans removed as one node). Auto-fired when the Final's
+// entered result locks the whole order; replayed from the plaque's trophy.
+// Replay-safe (tears down a running layer first) and reduced-motion aware.
 function celebrate() {
   if (reducedMotion()) return;
+  document.querySelector('.confetti-layer')?.remove();
   const layer = document.createElement('div');
   layer.className = 'confetti-layer';
   layer.setAttribute('aria-hidden', 'true'); // purely decorative — hide from screen readers
-  const colors = ['#c6a24c', '#d8452f', '#f3ecd9', '#0e6b52']; // collectible: foil gold, coral, cream, green
-  for (let i = 0; i < 64; i++) {
+  const colors = ['#c6a24c', '#d8452f', '#f3ecd9', '#0e6b52', '#efd98a']; // collectible: golds, coral, cream, green
+  for (let i = 0; i < 140; i++) {
     const s = document.createElement('span');
-    s.className = 'confetti';
+    const round = i % 7 === 0; // a few sequin discs among the ribbons
+    s.className = 'confetti' + (i % 4 === 0 ? ' foil' : '') + (round ? ' round' : '');
+    if (i % 4 !== 0) s.style.background = colors[i % colors.length]; // foil pieces keep the CSS gradient
+    const w = 6 + Math.random() * 5;
+    s.style.width = w + 'px';
+    s.style.height = (round ? w : 9 + Math.random() * 7) + 'px';
     s.style.left = Math.random() * 100 + '%';
-    s.style.background = colors[i % colors.length];
-    s.style.animationDelay = Math.random() * 0.7 + 's';
-    s.style.animationDuration = 2.2 + Math.random() * 1.2 + 's';
+    s.style.setProperty('--dx', ((Math.random() * 2 - 1) * 16).toFixed(1) + 'vw'); // sideways drift
+    s.style.setProperty('--rz', Math.round(360 + Math.random() * 540) + 'deg');
+    s.style.animationDelay = (Math.random() * 1.5).toFixed(2) + 's';
+    s.style.animationDuration = (2.6 + Math.random() * 1.6).toFixed(2) + 's';
     layer.appendChild(s);
   }
   document.body.appendChild(layer);
-  setTimeout(() => layer.remove(), 3600);
+  setTimeout(() => layer.remove(), 6000); // past max delay + duration
+}
+
+// The finale plaque — the Order page's record header once every pick is locked
+// (phase 'final'). The champions line comes from the Final match itself, NOT
+// picks[0]: the champion team can be one of the four undrawn teams (rule 2),
+// in which case picks[0] is simply the best-finishing drawn team — and if the
+// Final itself isn't decided yet (possible when neither finalist was drawn,
+// so the order locked without it), the line is omitted until it is.
+function finaleBlock(state, picks) {
+  const finalMatch = state.matches.find((m) => m.round === 'Final');
+  const wl = finalMatch ? matchWinnerLoser(finalMatch) : null;
+  const champs = wl ? teamMap(state).get(wl.winner) : null;
+  const first = picks[0], last = picks[picks.length - 1];
+  const k = finalMatch ? kickoffMs(finalMatch) : null;
+  return `<section class="finale" aria-label="The final draft order">
+    <button type="button" class="fin-trophy" data-act="celebrate" title="More confetti" aria-label="More confetti">
+      <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <defs><linearGradient id="fin-gold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#efd98a"/><stop offset=".48" stop-color="#c6a24c"/>
+          <stop offset=".52" stop-color="#a07d2c"/><stop offset="1" stop-color="#e6cf82"/>
+        </linearGradient></defs>
+        <path fill="url(#fin-gold)" d="M7 3h10v4.4a5 5 0 0 1-10 0Z"/>
+        <path fill="none" stroke="url(#fin-gold)" stroke-width="1.5" d="M7 4.6H3.9a3.3 3.3 0 0 0 3.5 3.8M17 4.6h3.1a3.3 3.3 0 0 1-3.5 3.8"/>
+        <path fill="url(#fin-gold)" d="M10.7 12.2h2.6l.6 4.4h-3.8Z"/>
+        <rect fill="url(#fin-gold)" x="7.6" y="16.4" width="8.8" height="2.4" rx="0.7"/>
+      </svg>
+    </button>
+    <p class="fin-eyebrow">2026 World Cup · full time</p>
+    <h2 class="fin-title">Final <em>order.</em></h2>
+    ${champs ? `<p class="fin-champs">${teamTap(champs, `${flag(champs)} <span class="tl">${esc(champs.name)}</span>`)}<span class="fin-chip">champions</span></p>` : ''}
+    <p class="fin-picks">${memberTap(first.member, `<strong>${esc(first.member.name)}</strong>`)} picks ${nth(first.pickNumber)} · ${memberTap(last.member, `<strong>${esc(last.member.name)}</strong>`)} picks ${nth(last.pickNumber)}</p>
+    ${k != null ? `<p class="fin-date">decided ${esc(new Date(k).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }))}</p>` : ''}
+  </section>`;
 }
 
 function meBar(state) {
@@ -443,6 +492,7 @@ function renderOrder(state) {
 
   view().innerHTML = `
     ${nav()}${meBar(state)}
+    ${phase === 'final' ? finaleBlock(state, picks) : ''}
     <div class="statusline">
       <span class="phase-pill ${PHASE[phase].cls}">${PHASE[phase].label}</span>
       ${picks.length ? `<span class="lock-tally">${lockedCount}/12 locked</span>` : ''}
@@ -457,8 +507,16 @@ function renderOrder(state) {
     ${trustStamps(state)}`;
 
   prevLocked = nowLocked;
-  if (phase === 'final' && !celebrated) { celebrated = true; celebrate(); }
-  if (phase !== 'final') celebrated = false;
+  // The completion moment: the render where the Final's entered result locks
+  // the last picks. A viewer watching live gets the burst the instant it lands;
+  // later visitors get it once (per device) on first sight of the finished
+  // order. A result edit that un-finals and re-finals never re-fires it.
+  if (phase === 'final') {
+    if (!celebrated) {
+      celebrated = true;
+      if (!finaleSeen()) { setFinaleSeen(); celebrate(); }
+    }
+  } else celebrated = false;
 }
 
 // ===========================================================================
@@ -1125,6 +1183,7 @@ document.addEventListener('click', (e) => {
     renderWhatIf(appState, moved);
   }
   else if (act === 'reset-preds') { predictions = {}; renderWhatIf(appState); }
+  else if (act === 'celebrate') celebrate(); // the plaque's trophy: confetti encore
   else if (act === 'copy-update') {
     const ta = document.getElementById('update-text');
     navigator.clipboard?.writeText(ta.value).then(() => { btn.textContent = 'Copied ✓'; setTimeout(() => (btn.textContent = 'Copy'), 1500); })

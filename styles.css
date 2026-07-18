@@ -41,6 +41,8 @@
   --gold-tint:   #f6edd4;
   --coral-tint:  #fbe7e2;
   --green-tint:  #e6f1ea;
+  /* a LOCKED plate's ground — aged/toasted paper, clearly darker than --card */
+  --card-locked: #e4d5b0;
   /* rank-block ink (numeral on a band-coloured block) */
   --rank-ink:    #f6efdd;
 
@@ -75,6 +77,7 @@
   --gold-tint:   #2a2410;
   --coral-tint:  #2a1614;
   --green-tint:  #10281f;
+  --card-locked: #0a1512;
   --rank-ink:    #f2ead6;
   color-scheme: dark;
 }
@@ -229,11 +232,19 @@ a:hover { text-decoration: underline; }
 .pick.top1 .pick-num { background: linear-gradient(135deg, #efd98a, #c6a24c 48%, #a07d2c 50%, #e6cf82); color: #3a2c07; }
 .pick.top1 { box-shadow: 0 6px 20px -9px rgb(198 162 76 / 0.6); }
 .pick.top1::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / 0.32) 50%, transparent 58%); }
-/* locked pick — the number block sits deeper than a live/provisional one, so a
-   locked position reads as locked on any band. Inset overlay (not filter) darkens
-   only the band colour, leaving the cream numeral crisp. :not(.top1) keeps pick 1
-   on its foil. */
+/* locked pick — the WHOLE plate reads settled: pasted into the album (darker,
+   aged paper; the lifted shadow drops away, pressed flat) and its number block
+   sits deeper still. Undecided plates keep the bright cream, so locked-vs-open
+   is a glance read down the ladder. Data-driven: .locked rides the engine's
+   `locked` flag (settled results only), so entering the 3rd-place score darkens
+   picks 3–4 by itself and the Final's score darkens 1–2. :not(.top1) keeps pick
+   1 on its foil — when the order completes, #1 shines alone above a settled
+   board. Inset overlay (not filter) darkens the band colour, numeral stays crisp. */
+.pick.locked:not(.top1) { background: var(--card-locked); box-shadow: 0 2px 6px -5px rgb(0 0 0 / 0.55); }
 .pick.locked:not(.top1) .pick-num { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.26); }
+/* night plates are already dark, so the bg shift alone whispers — dim the rung
+   (the row's brightest element) harder to make locked rows read at a glance */
+:root[data-theme="night"] .pick.locked:not(.top1) .pick-num { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.45); }
 .pick.mine { outline: 2px solid var(--gold); outline-offset: -2px; }
 .pick-member { font-weight: 700; }
 .pick-member .you { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.06em; background: var(--coral); color: #fff; border-radius: 4px; padding: 1px 5px; vertical-align: middle; text-transform: uppercase; }
@@ -247,7 +258,10 @@ a:hover { text-decoration: underline; }
 .badge-alive { color: var(--green); font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
 .badge-alive::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 5px; vertical-align: middle; }
 .badge-prov { color: var(--mut); font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; }
-@keyframes lockpulse { 0% { box-shadow: 0 0 0 0 var(--gold); } 40% { box-shadow: 0 0 18px -2px var(--gold); } 100% { box-shadow: 0 6px 20px -9px rgb(198 162 76 / 0.6); } }
+/* the 0% background is the bright cream, so a plate that JUST locked visibly
+   "ink-dries" into its darker settled ground over the pulse (re-renders rebuild
+   the DOM, so a transition would never fire — the keyframe carries the change) */
+@keyframes lockpulse { 0% { background-color: var(--card); box-shadow: 0 0 0 0 var(--gold); } 40% { box-shadow: 0 0 18px -2px var(--gold); } 100% { box-shadow: 0 6px 20px -9px rgb(198 162 76 / 0.6); } }
 .pick.just-locked { animation: lockpulse 1s ease-out; }
 .empty { background: var(--card); color: var(--mut); border: 1px dashed var(--line); border-radius: var(--radius); padding: 20px; text-align: center; }
 
@@ -479,10 +493,47 @@ button.btn-danger { color: var(--coral-ink); border-color: color-mix(in srgb, va
 /* 16px minimum on every control — anything smaller makes iOS Safari zoom the page on focus */
 select, input[type="number"], input[type="email"], input[type="password"], input[type="text"], input[type="datetime-local"] { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 8px; font-size: 1rem; min-width: 0; font-family: var(--font-body); }
 
-/* --- celebration --- */
+/* =======================================================================
+   CELEBRATION — fires when the Final's result locks the whole order.
+   Confetti: a foil-heavy shower (ribbons + sequin discs, gold-biased).
+   Plaque: the record header — trophy (tap = encore), Anton title, champions
+   line, first/last pick, date stamp. Persists as the page's recap masthead.
+   ======================================================================= */
 .confetti-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9999; }
-.confetti { position: absolute; top: -14px; width: 8px; height: 13px; border-radius: 1px; opacity: 0.95; animation: confetti-fall linear forwards; }
-@keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+/* base opacity 0: a piece waiting on its animation-delay stays hidden, not
+   pinned to the top of the screen */
+.confetti { position: absolute; top: -18px; width: 8px; height: 13px; border-radius: 1px; opacity: 0;
+  animation: confetti-fall linear forwards; }
+.confetti.round { border-radius: 50%; }
+.confetti.foil { background: linear-gradient(135deg, #efd98a, #c6a24c 48%, #a07d2c 52%, #e6cf82); }
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--dx, 0px), 110vh, 0) rotate(var(--rz, 680deg)); }
+}
+
+/* the finale plaque — programme-cover double rule struck with a foil sheen */
+.finale { position: relative; background: var(--card); color: var(--ink); border: 4px double var(--gold-deep);
+  border-radius: var(--radius); padding: 16px 14px 13px; text-align: center; margin-bottom: 12px;
+  box-shadow: 0 8px 26px -14px rgb(198 162 76 / 0.7); overflow: hidden; }
+.finale::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 44%, rgb(255 255 255 / 0.2) 50%, transparent 56%); }
+@media (prefers-reduced-motion: no-preference) {
+  .finale { animation: plaque-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.14); }
+}
+@keyframes plaque-in { from { transform: scale(0.94); opacity: 0; } }
+.fin-trophy { display: block; margin: 0 auto 2px; padding: 4px; background: none; border: 0; cursor: pointer; line-height: 0; }
+.fin-trophy:active { transform: scale(0.92); }
+.fin-trophy svg { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.25)); }
+.fin-eyebrow { margin: 2px 0 0; font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold-ink); }
+.fin-title { margin: 3px 0 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(1.9rem, 9vw, 2.4rem); line-height: 0.95; letter-spacing: 0.01em; text-transform: uppercase; }
+.fin-title em { font-style: normal; color: var(--gold-ink); }
+.fin-champs { margin: 10px 0 0; display: flex; align-items: center; justify-content: center; gap: 9px; flex-wrap: wrap; font-weight: 700; font-size: 1.02rem; }
+.fin-champs .flag { width: 1.5em; height: 1.5em; }
+.fin-chip { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gold-ink); background: var(--gold-tint); border: 1px solid var(--gold); border-radius: 999px; padding: 2px 9px; }
+.fin-picks { margin: 8px 0 0; font-family: var(--font-mono); font-size: 0.78rem; color: var(--mut); }
+.fin-picks strong { color: var(--ink); }
+.fin-date { margin: 7px 0 0; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mut); }
 
 /* --- footer --- */
 .site-footer { margin-top: 28px; text-align: center; color: var(--ground-mut); font-size: 0.76rem; }
