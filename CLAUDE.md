@@ -56,7 +56,14 @@ code implements, but nothing here is greenfield anymore. Full file map: `README.
   share-preview card (`og-card.png`); the **Matchday Wire** (neutral, news-only match
   feed — only prints real changes); programme-tab nav + iOS fixes; Results-first admin;
   Bracket wall-chart; Schedule ticket rail; What-if pools coupon; Help-as-programme;
-  locked picks darken their number block; the show-don't-tell prose trims.
+  the show-don't-tell prose trims.
+- **Finale pass (Jul-18, LOCAL-ONLY — commit `d7854b5`).** LOCKED picks darken their WHOLE
+  plate (was: number block only) — pure CSS off the engine's `locked` flag, so the
+  3rd-place score darkens picks 3–4 by itself and the Final's score darkens 1–2; pick 1
+  exempt so the finished #1 shines in foil. When all 12 picks lock (phase `final`), the
+  Order page celebrates: finale plaque (champions line from the Final MATCH, not
+  `picks[0]` — the champion can be undrawn) + foil confetti auto-fired once per device
+  (`wcdraft.finaleSeen.v1`), trophy tap = encore. Taste forks banked in `TODOS.md` §finale.
 - **Live-scores poller — Phase A only (dry-run).** `scripts/poller.mjs` + the `poller.yml`
   workflow map football-data's LIVE / EXTRA_TIME / PENALTY_SHOOTOUT statuses but **do not
   write to the live store** — this is the v2 auto-fetch sitting *behind the score-input
