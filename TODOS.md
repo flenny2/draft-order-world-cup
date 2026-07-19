@@ -21,6 +21,13 @@ locked-vs-undecided split too — sf_loser rung brightened #877134→#bd943c (ni
 locked inset deepened 0.26→0.42 day / 0.45→0.55 night. Verified on his reconstructed
 real board pre/post England 6-4 France.
 
+Second follow-up Jul-19 (`13d5d45`, Dylan): **podium metals** — runner-up SILVER +
+3rd-place BRONZE number blocks, struck like the pick-1 foil (metal gradient, dark ink,
+exempt from the locked dim); 4th stays grey (no medal). Help ladder shows the same podium.
+**Ratified taste (Dylan, Jul-19): round-coded rung hues stay** — he LIKES that QF exits
+(lighter teal) read differently from R16 exits (deep teal); don't flatten them in any
+future styling pass.
+
 Taste forks banked Jul-18 (each is a one-line change if Dylan re-cuts it):
 - **Locked blocks keep a hue whisper of their band** (chosen; alt = one flat dark for all
   locked rungs → add a `--rung` override on `.pick.locked` in styles.css).
