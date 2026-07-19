@@ -13,11 +13,12 @@ updated: 2026-07-13
 
 # CLAUDE.md — World Cup Fantasy Draft Order Tool
 
-> ⚠️ **DEPLOY HOLD — no push before 2026-07-19.** A live 12-person league is on the
-> deployed build. Every change this window is merged **local-only**; a mid-tournament
-> deploy could change draft-order output under a running league. (The unattended queue
-> runner never pushes anyway.) The hold lifts after the Final — then the planned
-> generalization push (women's WC / Euros / UCL profiles) can go out.
+> ⚠️ **LIVE PAGE — every `git push` deploys.** GitHub Pages serves `main` straight to the
+> league's URL, so a push publishes instantly under the live 12-person league. Push ONLY
+> on Dylan's explicit word — per push, every time. (The Jul-5→19 deploy hold is RETIRED:
+> Dylan said "push" on 2026-07-19, morning of the Final, shipping the held window —
+> profile layer, validator, finale UI — with the men's-WC profile test-locked
+> behaviour-identical, so the live draft order was unaffected.)
 
 ## What this is
 A shareable, mobile-first web tool that ties a 12-person fantasy league's draft

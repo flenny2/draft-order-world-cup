@@ -32,7 +32,7 @@ Taste forks banked Jul-18 (each is a one-line change if Dylan re-cuts it):
 - **Night locked-contrast** = darker ground + harder rung dim; if it reads weak on his
   phone, next lever is dimming locked plate text (night-only rule in styles.css).
 
-Standing fences: **ABSOLUTE no-push hold to ~Jul-19; push=deploy to the live league page —
-ask Dylan EVERY time, even after the hold lifts** (rule 6). Repo sits ~14 commits ahead of
-origin on purpose. Keep the full test suite + tournament-validate green (122 checks at last
+Standing fences: **push=deploy to the live league page — Dylan's explicit word, EVERY
+push** (the Jul-19 hold is RETIRED — he said "push" on Final morning and the held window
+deployed). Keep the full test suite + tournament-validate green (122 checks at last
 booking); no deletions, no installs.
