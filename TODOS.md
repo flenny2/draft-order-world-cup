@@ -16,7 +16,14 @@ for Dylan pending; deploy = his word once the hold lifts. 122 checks green.
       order." in Anton, champions line, first/last pick, date) + 140-piece foil confetti
       shower. Auto-fires once per device; the plaque's trophy replays it.
 
+Follow-up Jul-19 (`7adc575`, Dylan screenshot feedback): number BLOCKS now track the
+locked-vs-undecided split too — sf_loser rung brightened #877134→#bd943c (night #caa64a),
+locked inset deepened 0.26→0.42 day / 0.45→0.55 night. Verified on his reconstructed
+real board pre/post England 6-4 France.
+
 Taste forks banked Jul-18 (each is a one-line change if Dylan re-cuts it):
+- **Locked blocks keep a hue whisper of their band** (chosen; alt = one flat dark for all
+  locked rungs → add a `--rung` override on `.pick.locked` in styles.css).
 - **Pick 1 stays foil-bright when locked** (chosen: winner's plate shines alone over the
   settled board; alt = darken it too → drop `:not(.top1)` on `.pick.locked` in styles.css).
 - **Confetti once per DEVICE, trophy = encore** (alt = every visit → drop the finaleSeen
